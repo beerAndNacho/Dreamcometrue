@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+data/
+*.pyc
+.env.*
+!.env.example
+
+ui-checks/
