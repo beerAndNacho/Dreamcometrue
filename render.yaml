@@ -1,0 +1,30 @@
+# Single-user hosted service. Review charges before creating resources.
+services:
+  - type: web
+    name: macro-invest-private
+    runtime: docker
+    region: singapore
+    plan: 0.5c-512mb
+    numInstances: 1
+    healthCheckPath: /healthz
+    disk:
+      name: macro-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: HOSTED_MODE
+        value: '1'
+      - key: DEMO_MODE
+        value: '0'
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:////app/data/invest.db
+      - key: SETTINGS_DIR
+        value: /app/data/settings
+      - key: AUTO_COLLECT
+        value: '0'
+      - key: COLLECT_HOUR_KST
+        value: '8'
+      - key: TZ
+        value: Asia/Seoul

@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: macroinvest
+      POSTGRES_USER: macroinvest
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_macroinvest_only}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U macroinvest -d macroinvest"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://macroinvest:${POSTGRES_PASSWORD:-local_macroinvest_only}@db:5432/macroinvest
+      TZ: Asia/Seoul
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - demodata:/app/data
+    restart: unless-stopped
+volumes:
+  pgdata:
+  demodata:

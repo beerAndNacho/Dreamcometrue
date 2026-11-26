@@ -1,0 +1,15 @@
+@echo off
+cd /d "%~dp0"
+if not exist .venv\Scripts\python.exe py -3 -m venv .venv
+if errorlevel 1 goto fail
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+if errorlevel 1 goto fail
+set HOSTED_MODE=0
+set DEMO_MODE=0
+if not exist .env copy .env.example .env >nul
+echo Dashboard: http://127.0.0.1:8000
+echo Admin: http://127.0.0.1:8000/admin
+echo User: admin. Password: data\settings\live\admin-password.txt (created at first startup, unless ADMIN_PASSWORD is set).
+.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+:fail
+pause
