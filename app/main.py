@@ -55,7 +55,7 @@ async def lifespan(app):
         t.join(timeout=2)
         alerts.join(timeout=2)
 
-app=FastAPI(title='Macro Invest',version='4.7.0',lifespan=lifespan)
+app=FastAPI(title='Macro Invest',version='4.7.1',lifespan=lifespan)
 STATIC=Path(__file__).parent/'static'
 app.add_middleware(TrustedHostMiddleware,allowed_hosts=HOSTS, www_redirect=False)
 app.include_router(admin_router)

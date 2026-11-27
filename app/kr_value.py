@@ -92,9 +92,9 @@ def filings(client,cfg,corp,asof):
     """Recent filing links only, not inferred ex-dates or a complete calendar."""
     items=[]; seen=set(); complete=True
     for page in range(1,5):
-        response=km.checked_json(client.get(km.DART+'/list.json',params={'crtfc_key':cfg['DART_API_KEY'],'corp_code':corp,'bgn_de':(asof-timedelta(days=365)).strftime('%Y%m%d'),'end_de':asof.strftime('%Y%m%d'),'page_no':str(page),'page_count':'100','sort':'date','sort_mth':'desc'}),'OpenDART')
+        response=km.dart_get(client,cfg,'list',{'corp_code':corp,'bgn_de':(asof-timedelta(days=365)).strftime('%Y%m%d'),'end_de':asof.strftime('%Y%m%d'),'page_no':str(page),'page_count':'100','sort':'date','sort_mth':'desc'},allow_no_data=True)
         if response.get('status')=='013': break
-        if response.get('status')!='000' or not isinstance(response.get('list'),list): raise km.MarketError('배당 관련 공시 검색 실패')
+        if not isinstance(response.get('list'),list): raise km.DartError('format','list')
         for row in response['list']:
             if not isinstance(row,dict) or row.get('corp_code')!=corp: continue
             n=row.get('rcept_no'); d=km.day_value(row.get('rcept_dt')); title=str(row.get('report_nm') or '')[:180]
@@ -174,10 +174,13 @@ def refresh(req:Refresh):
             jobs.append((key('events',req.code,'COMMON'),lambda:filings(c,cfg,corp,today())))
             # Successful historic responses cached for up to 24 hours. Force permits amendments to be refreshed.
             deadline=time.monotonic()+80
+            blocked=None
             for k,fetch in jobs:
                 old=payload(k)
                 if not req.force and old['state']=='ok' and old['updated'] and old['updated'][:10]==str(today()):
                     results.append({'key':k,'state':'cached'}); continue
+                if blocked:
+                    results.append({'key':k,'state':'skipped','message':blocked}); continue
                 if time.monotonic()>deadline:
                     results.append({'key':k,'state':'skipped','message':'요청 시간 제한 · 다시 수집하세요.'}); continue
                 try:
@@ -185,6 +188,7 @@ def refresh(req:Refresh):
                 except Exception as e:
                     msg=str(e) if isinstance(e,km.MarketError) else '공시 연결/응답 오류'
                     km.store(k,error=msg); results.append({'key':k,'state':'error','message':msg})
+                    if isinstance(e,km.DartError) and e.fatal: blocked='후속 조회 중단 · '+msg
                 time.sleep(.15)
         return {'results':results}
     finally: LOCK.release()

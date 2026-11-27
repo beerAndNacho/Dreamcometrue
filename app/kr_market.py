@@ -29,6 +29,64 @@ TOKEN={}
 CORPS={}
 class MarketError(Exception): pass
 
+DART_STATUS={
+    '010':'등록되지 않은 인증키입니다. OpenDART 인증키 관리에서 확인하세요.',
+    '011':'사용 중지된 인증키입니다. OpenDART에서 키 상태를 확인하세요.',
+    '012':'접속 IP가 허용되지 않았습니다. 서버의 외부 IP 및 인증키 IP 제한을 확인하세요.',
+    '013':'조회 자료가 없습니다. 사업연도·보고서·연결/별도 구분과 공시 여부를 확인하세요.',
+    '014':'공시 파일이 존재하지 않습니다.',
+    '020':'요청 한도를 초과했습니다. 이용현황과 한도 초기화를 확인하세요.',
+    '021':'조회 가능 회사 수를 초과했습니다.',
+    '100':'잘못된 요청 필드입니다. 기업 고유번호·보고서·조회 조건을 확인하세요.',
+    '101':'부적절한 접근입니다. OpenDART 이용 권한을 확인하세요.',
+    '800':'OpenDART 시스템 점검 중입니다.',
+    '900':'OpenDART에서 정의되지 않은 오류가 발생했습니다.',
+    '901':'사용자 계정의 개인정보 보유기간이 만료되었습니다. OpenDART에 문의하세요.',
+}
+DART_FATAL={'010','011','012','020','101','800','900','901','network','http','format','missing_key','unknown'}
+DART_LABELS={'company':'기업개황','corpCode':'기업 고유번호 목록','fnlttSinglAcntAll':'재무제표','alotMatter':'배당','list':'공시 검색'}
+
+class DartError(MarketError):
+    def __init__(self,code,stage):
+        self.code=code if isinstance(code,str) and code in DART_STATUS.keys()|DART_FATAL else 'unknown'
+        self.fatal=self.code in DART_FATAL
+        label=DART_LABELS.get(stage,'공시')
+        message=DART_STATUS.get(self.code,{
+            'missing_key':'관리자에서 인증키를 저장하세요.',
+            'network':'서버에서 OpenDART에 연결하지 못했습니다. DNS·방화벽·TLS·시간 초과를 확인하세요.',
+            'http':'OpenDART HTTP 요청에 실패했습니다. 서비스 상태·접속 제한을 확인하세요.',
+            'format':'OpenDART 응답 형식이 올바르지 않습니다.',
+            'unknown':'알 수 없는 OpenDART 상태입니다. 공식 이용현황을 확인하세요.',
+        }.get(self.code,'조회 실패'))
+        super().__init__(f'OpenDART {label} [{self.code}] · {message}')
+
+def dart_key(cfg,stage):
+    key=cfg.get('DART_API_KEY','').strip()
+    if not key: raise DartError('missing_key',stage)
+    return key
+
+def dart_status(body,stage,allow_no_data=False):
+    if not isinstance(body,dict): raise DartError('format',stage)
+    code=body.get('status')
+    if code=='000' or (allow_no_data and code=='013'): return body
+    raise DartError(code,stage)
+
+def dart_zip_error(raw):
+    # corpCode.xml returns ZIP on success, but may return an XML/JSON error instead.
+    # Parse only small error envelopes; never expose remote message/URL/credentials.
+    if len(raw)>65536 or b'<!DOCTYPE' in raw.upper() or b'<!ENTITY' in raw.upper():
+        raise DartError('format','corpCode')
+    try:
+        body=json.loads(raw)
+    except (ValueError,UnicodeError):
+        try:
+            root=ElementTree.fromstring(raw)
+            body={'status':root.findtext('status')}
+        except ElementTree.ParseError: raise DartError('format','corpCode') from None
+    if isinstance(body,dict) and isinstance(body.get('status'),str) and body['status'] in DART_STATUS:
+        dart_status(body,'corpCode')
+    raise DartError('format','corpCode')
+
 def num(v):
     if v is None or isinstance(v,bool): return None
     try:
@@ -133,23 +191,32 @@ def fetch_stock_flow(client,cfg,code,cutoff):
     result=kis_get(client,cfg,'investor-trade-by-stock-daily','FHPTJ04160001',{'FID_COND_MRKT_DIV_CODE':'J','FID_INPUT_ISCD':code,'FID_INPUT_DATE_1':cutoff.strftime('%Y%m%d'),'FID_ORG_ADJ_PRC':'','FID_ETC_CLS_CODE':''})
     return clean_rows(result.get('output2'),cutoff,lambda r:parse_flow(r) if (num(r.get('stck_clpr')) or 0)>0 else None)
 
-def dart_get(client,cfg,endpoint,params):
-    if not cfg['DART_API_KEY']: raise MarketError('OpenDART API 키 등록 필요')
-    body=checked_json(client.get(DART+'/'+endpoint+'.json',params={'crtfc_key':cfg['DART_API_KEY'],**params}), 'OpenDART')
-    if body.get('status')!='000': raise MarketError('OpenDART 조회 실패 · 기업 고유번호, 보고서, 키 확인')
-    return body
+def dart_get(client,cfg,endpoint,params,allow_no_data=False):
+    key=dart_key(cfg,endpoint)
+    try:
+        response=client.get(DART+'/'+endpoint+'.json',params={**params,'crtfc_key':key})
+        response.raise_for_status()
+    except httpx.HTTPStatusError: raise DartError('http',endpoint) from None
+    except httpx.RequestError: raise DartError('network',endpoint) from None
+    try: body=response.json()
+    except ValueError: raise DartError('format',endpoint) from None
+    return dart_status(body,endpoint,allow_no_data)
 
-def resolve_corp(client,cfg,code):
-    if not cfg['DART_API_KEY']: raise MarketError('OpenDART API 키 등록 필요')
-    clock=time.monotonic(); identity=hashlib.sha256(cfg['DART_API_KEY'].encode()).hexdigest()
-    if CORPS.get('identity')!=identity or CORPS.get('expires',0)<=clock:
+def resolve_corp(client,cfg,code,force=False):
+    key=dart_key(cfg,'corpCode')
+    clock=time.monotonic(); identity=hashlib.sha256(key.encode()).hexdigest()
+    if force or CORPS.get('identity')!=identity or CORPS.get('expires',0)<=clock:
         # Official corpCode.zip contains CORPCODE.xml. Bound both compressed and decompressed sizes.
         buf=io.BytesIO()
-        with client.stream('GET',DART+'/corpCode.xml',params={'crtfc_key':cfg['DART_API_KEY']}) as response:
-            response.raise_for_status()
-            for chunk in response.iter_bytes():
-                buf.write(chunk)
-                if buf.tell()>20_000_000: raise MarketError('DART 기업목록 크기 제한 초과')
+        try:
+            with client.stream('GET',DART+'/corpCode.xml',params={'crtfc_key':key}) as response:
+                response.raise_for_status()
+                for chunk in response.iter_bytes():
+                    buf.write(chunk)
+                    if buf.tell()>20_000_000: raise MarketError('DART 기업목록 크기 제한 초과')
+        except httpx.HTTPStatusError: raise DartError('http','corpCode') from None
+        except httpx.RequestError: raise DartError('network','corpCode') from None
+        if not zipfile.is_zipfile(buf): dart_zip_error(buf.getvalue())
         try:
             with zipfile.ZipFile(buf) as z:
                 candidates=[x for x in z.infolist() if x.filename.upper()=='CORPCODE.XML']
@@ -158,7 +225,7 @@ def resolve_corp(client,cfg,code):
                     content=f.read(60_000_001)
                     if len(content)>60_000_000 or b'<!DOCTYPE' in content.upper() or b'<!ENTITY' in content.upper(): raise MarketError('DART 기업목록 형식 오류')
                     root=ElementTree.fromstring(content)
-        except (zipfile.BadZipFile,ElementTree.ParseError): raise MarketError('DART 기업목록을 가져오지 못했습니다. 키를 확인하세요.') from None
+        except (zipfile.BadZipFile,ElementTree.ParseError,RuntimeError,NotImplementedError): raise DartError('format','corpCode') from None
         mapping={}
         for r in root.findall('list'):
             ticker=(r.findtext('stock_code') or '').strip(); corp=(r.findtext('corp_code') or '').strip()
@@ -171,7 +238,7 @@ def resolve_corp(client,cfg,code):
 def fetch_financials(client,cfg,code,corp,year,report,scope):
     if not corp: corp=resolve_corp(client,cfg,code)
     company=dart_get(client,cfg,'company',{'corp_code':corp})
-    if company.get('stock_code','').strip()!=code: raise MarketError('DART 기업 고유번호와 종목 코드 불일치')
+    if str(company.get('stock_code') or '').strip()!=code: raise MarketError('DART 기업 고유번호와 종목 코드 불일치 · 종목코드 6자리와 고유번호 8자리를 확인하세요.')
     body=dart_get(client,cfg,'fnlttSinglAcntAll',{'corp_code':corp,'bsns_year':str(year),'reprt_code':report,'fs_div':scope})
     raw=body.get('list')
     if not isinstance(raw,list) or not raw or len(raw)>10000: raise MarketError('재무제표 응답 없음')
