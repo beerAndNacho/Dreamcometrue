@@ -1,4 +1,12 @@
-# Macro Invest 4.5.1 — Intelligence Observatory / 글로벌 투자 관측소
+# Macro Invest 4.5.2 — Intelligence Observatory / 글로벌 투자 관측소
+
+## 4.5.2 OpenDART 조회 수정
+
+- 관리자 `/admin#krApiSetup`에서 인증키 저장 후 **OpenDART 연결 검사**를 실행합니다. 삼성전자 기업개황/고유번호 ZIP/2년 전 연결 연간 재무/배당 표본을 검사합니다. 실 사용자 데이터나 기존 설정은 변경하지 않습니다.
+- 공식 오류 코드 010/011/012(인증 및 서버 IP), 013/014(자료·파일 없음), 020/021(제한), 100/101(요청), 800/900/901(서버/계정)을 구분합니다. 원본 응답 메시지·인증키·URL은 표시하지 않습니다. ZIP 대신 오류 XML/JSON이 돌아와도 진단합니다. 인증/호출 제한/네트워크 실패 시 후속 공시 수집을 중단하고 기존 자료를 보존합니다.
+- 국내 증시 사업보고서 기본 사업연도는 직전 연도입니다. 실제 공시 여부와 연결/별도 구분은 사용자가 확인해야 합니다. 기업가치 화면에 연도별 재무·배당 오류와 자료 없음 사유를 표시합니다. KOSIS 설정/DB 구조 변경 없음.
+- 공식 가이드: https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS003&apiId=2019020 , https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS001&apiId=2019018 . 실계정 및 서버 외부 IP는 사용자 환경에서 연결 검사해야 합니다.
+
 
 개인용 로컬 또는 HTTPS 호스팅 웹 서비스. FastAPI + SQLAlchemy + PostgreSQL(Docker) 또는 SQLite(간편 실행) + 순수 HTML/CSS/JS. 38개 지표 수집 및 분석, 우주 관측소 테마, 관리자 콘솔, 지표 품질 확인, 리포트 다운로드, 서버 포트폴리오 저장을 지원합니다. 거래 주문은 실행하지 않습니다.
 

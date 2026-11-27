@@ -81,11 +81,36 @@ SAMPLES={'FRED':['cpi'],'ECOS':['kr_rate','kr10y','kr3y','usdkrw','kospi','kosda
 
 @router.post('/api/admin/test/{provider}',dependencies=[Depends(require_write)])
 def test_connection(provider:str):
-    if provider not in SAMPLES: raise HTTPException(404,'지원하지 않는 제공처')
+    if provider not in SAMPLES and provider!='DART': raise HTTPException(404,'지원하지 않는 제공처')
     if DEMO: raise HTTPException(409,'데모에서는 외부 API 호출을 하지 않습니다. 실데이터 모드에서 검사하세요.')
     if not LOCK.acquire(blocking=False): raise HTTPException(409,'다른 작업이 진행 중입니다.')
     try:
         cfg=load_settings(); end=today(); start=end-timedelta(days=240); results=[]
+        if provider=='DART':
+            from . import kr_market as km
+            from .kr_value import parse_dividend
+            ticker,corp='005930','00126380'  # Known public sample: Samsung Electronics.
+            year=max(2015,end.year-2)  # Avoid unfiled current/prior fiscal year around year-end.
+            params={'corp_code':corp,'bsns_year':str(year),'reprt_code':'11011'}
+            def company(c):
+                body=km.dart_get(c,cfg,'company',{'corp_code':corp})
+                if str(body.get('stock_code') or '').strip()!=ticker: raise km.MarketError('표본 기업 고유번호와 종목코드 불일치')
+            def directory(c):
+                if km.resolve_corp(c,cfg,ticker,force=True)!=corp: raise km.MarketError('표본 기업 고유번호 목록 불일치')
+            def finance(c):
+                km.fetch_financials(c,cfg,ticker,corp,year,'11011','CFS')
+            def dividend(c):
+                parse_dividend(km.dart_get(c,cfg,'alotMatter',params).get('list'),corp,year)
+            with httpx.Client(timeout=httpx.Timeout(15,connect=6),follow_redirects=False) as c:
+                for label,action in [('인증·기업개황',company),('고유번호 ZIP',directory),(f'{year}년 연결 재무제표',finance),(f'{year}년 배당',dividend)]:
+                    try:
+                        action(c); results.append({'series':label,'state':'ok','message':'표본 응답 정상'})
+                    except Exception as e:
+                        message=str(e) if isinstance(e,km.MarketError) else 'OpenDART 검사 중 연결 또는 응답 오류'
+                        results.append({'series':label,'state':'error','message':message})
+                        # Authentication failed, or provider/network unavailable: avoid redundant requests.
+                        if label=='인증·기업개황' or (isinstance(e,km.DartError) and e.fatal): break
+            return {'provider':provider,'ok':len(results)==4 and all(r['state']=='ok' for r in results),'results':results,'note':'삼성전자 고정 표본 검사 · 실제 키와 서버 연결을 확인합니다. 투자 자료를 DB에 저장하지 않으며 특정 기업의 전체 공시를 보장하지 않습니다.'}
         with httpx.Client(timeout=httpx.Timeout(12,connect=6),follow_redirects=False,headers={'User-Agent':'MacroInvestPersonal/2.0'}) as client:
             batch=None
             if provider=='OECD':
