@@ -33,29 +33,34 @@ from .middleware import BodyLimitMiddleware
 from .dashboard_data import build_dashboard, iso
 from .briefing import build_briefing, save_daily_snapshot
 from .guide import explain
+from .operations import router as operations_router, schedule_backups, instance_lock, VERSION
 from typing import Literal
 
 @asynccontextmanager
 async def lifespan(app):
-    init()
-    password()
-    interrupt_ai()
-    interrupt_alerts()
-    with Session.begin() as db:
-        db.execute(update(Run).where(Run.state=='running').values(state='interrupted'))
-    if DEMO:
-        seed()
-        save_daily_snapshot(today(), build_dashboard(today()))
-    stop=threading.Event(); t=threading.Thread(target=schedule,args=(stop,),daemon=True); t.start()
-    alerts=threading.Thread(target=schedule_alerts,args=(stop,),daemon=True); alerts.start()
-    try:
-        yield
-    finally:
-        stop.set()
-        t.join(timeout=2)
-        alerts.join(timeout=2)
+    with instance_lock():
+        init()
+        password()
+        interrupt_ai()
+        interrupt_alerts()
+        with Session.begin() as db:
+            db.execute(update(Run).where(Run.state=='running').values(state='interrupted'))
+        if DEMO:
+            seed()
+            save_daily_snapshot(today(), build_dashboard(today()))
+        stop=threading.Event(); t=threading.Thread(target=schedule,args=(stop,),daemon=True); t.start()
+        alerts=threading.Thread(target=schedule_alerts,args=(stop,),daemon=True); alerts.start()
+        backups=threading.Thread(target=schedule_backups,args=(stop,),daemon=True); backups.start()
+        try:
+            yield
+        finally:
+            stop.set()
+            t.join(timeout=2)
+            alerts.join(timeout=2)
+            backups.join(timeout=125)
 
-app=FastAPI(title='Macro Invest',version='4.7.1',lifespan=lifespan)
+
+app=FastAPI(title='Macro Invest',version=VERSION,lifespan=lifespan)
 STATIC=Path(__file__).parent/'static'
 app.add_middleware(TrustedHostMiddleware,allowed_hosts=HOSTS, www_redirect=False)
 app.include_router(admin_router)
@@ -69,6 +74,7 @@ app.include_router(kr_value_router)
 app.include_router(calendar_router)
 app.include_router(intelligence_router)
 app.include_router(notification_router)
+app.include_router(operations_router)
 app.add_middleware(BodyLimitMiddleware, max_bytes=1_000_000)
 app.mount('/static',StaticFiles(directory=STATIC),name='static')
 

@@ -275,6 +275,39 @@ def export_book():
     return Response(json.dumps({'format':'macro-invest-journal-v1','demo':DEMO,'revision':revision,'book':book.model_dump(mode='json')},ensure_ascii=False,indent=2),media_type='application/json',headers={'Content-Disposition':'attachment; filename="macro-invest-journal.json"','Cache-Control':'no-store'})
 
 
+class JournalExport(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    format:Literal['macro-invest-journal-v1']
+    demo:bool=Field(strict=True)
+    revision:int=Field(ge=0,le=2147483647)
+    book:Book
+
+class JournalImport(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    archive:JournalExport
+    expected_revision:int=Field(ge=0,le=2147483646)
+    confirmed:bool=Field(default=False,strict=True)
+
+def inspect_import(req):
+    if req.archive.demo!=DEMO:raise HTTPException(400,'데모와 운영 장부는 서로 가져올 수 없습니다.')
+    with Session() as db:
+        _,revision=load(db)
+    if revision!=req.expected_revision:raise HTTPException(409,'다른 화면에서 기록이 변경되었습니다. 다시 불러오세요.')
+    book=req.archive.book
+    try:result=evaluate(book,today())
+    except LedgerError as e:raise HTTPException(400,str(e)) from None
+    return {'entries':len(book.entries),'marks':len(book.marks),'valuation_days':len(book.valuation_days),'cash':result['current']['cash'],'equity':result['current']['equity'],'expected_revision':revision}
+
+@router.post('/api/journal/import/preview',dependencies=[Depends(require_write)])
+def preview_import(req:JournalImport):return inspect_import(req)
+
+@router.put('/api/journal/import',dependencies=[Depends(require_write)])
+def import_book(req:JournalImport):
+    if not req.confirmed:raise HTTPException(400,'기존 장부 전체 교체 확인이 필요합니다.')
+    inspect_import(req)
+    return put_book(SaveBook(**req.archive.book.model_dump(),revision=req.expected_revision))
+
+
 @router.get('/api/journal/mark-hint',dependencies=[Depends(require_admin)])
 def mark_hint(day:date,symbol:Symbol,currency:Currency):
     """Suggestions only: no API call, no implicit save, no carried-forward price."""

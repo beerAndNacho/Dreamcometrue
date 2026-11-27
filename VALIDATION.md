@@ -1,3 +1,14 @@
+# Macro Invest 4.8.0 — 검증 기록
+
+- 기반: 4.7.1 Git tree `ba629637bf318953963ea146caa1f4b314a91fa1` 및 운영 4.5.2 hotfix 이력. 기존 KOSIS/OpenDART 수집 제공처와 기존 DB 스키마 유지.
+- `python -m pytest -q`: **147 passed** (기존 137 + 신규 10). 임시 SQLite DB의 일관된 snapshot, 커밋/WAL 및 미커밋 값 제외, SHA-256/스키마 검사, 원래 값 복구 및 복원 직전 백업, 잠금과 자동화 비활성화, 관리자 인증·Origin·헤더·다운로드·삭제 보호, 자동 보존·일일 중복 방지·디스크 여유, 미래/오래됨/알 수 없는 계열 검사, 공통 수집 엔진의 개별 재시도, 장부 미리보기·모드·충돌·잘못된 거래 차단 확인.
+- 모든 앱 JavaScript `node --check`, Python `compileall`, `git diff --check` 통과.
+- `PYTHONPATH=. python tools/check_operations_ui.py OUTPUT_DIR`: 1440×1100 및 390×844 Chromium 실제 화면 조작 검사 통과. FastAPI TestClient 응답 브리지로 일정 저장, 백업 생성 및 검사, 데이터 무결성 검사, 모바일 가로 넘침, 장부 JSON 미리보기 및 교체를 검증. 실 TCP/HTTPS 접속 및 실제 스마트폰 설치는 별도 확인 필요.
+- Dockerfile PostgreSQL client 설치 및 GitHub Actions 전용 PostgreSQL 16 service smoke test `python -m tools.check_postgres_backup`를 추가. 이 실행 환경에는 PostgreSQL 서버/CLI와 Docker가 없어 직접 실행하지 못했습니다. CI 결과와 실제 운영 DB에서 별도 검증이 필요합니다.
+- 실제 API 인증키, Render 운영 복원, 장기 예약 작업/실제 파일 권한·디스크 장애는 미검증. 전체 기존 화면 브라우저 재검사는 이번에 하지 않았으며 기존 자동화 회귀 테스트는 통과했습니다. 앱 내 DB 백업은 설정/키/환경변수의 외부 백업을 대체하지 않으며, 전체 DB 복원은 오프라인 명령만 지원합니다. 투자 장부는 해당 프로그램의 JSON만 지원합니다.
+
+---
+
 # Macro Invest 4.7.1 — 검증 기록
 
 ## 4.7.1 OpenDART 조회 수정

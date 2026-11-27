@@ -1,3 +1,12 @@
+# 4.8.0 — Mission Control
+
+- 운영 관측소: DB 용량·시스템 상태·수집 기록·무결성 검사.
+- 일관된 DB 백업/검사/인증 다운로드/자동 보존/제한 및 안전 삭제, SQLite WAL 스냅샷, PostgreSQL native archive.
+- 오프라인 DB 복원 명령, 실행 중 앱 잠금, 복원 전 DB 백업 및 외부 자동화 비활성화.
+- 개별 경제지표 재수집(기존 수집 엔진 공유), 투자 장부 JSON 미리보기·교체 및 충돌 검사.
+- 모바일 백업 카드형 목록, 운영 메뉴 및 관리자 바로가기, PostgreSQL 전용 CI 복원 smoke test.
+- KOSIS 및 OpenDART hotfix 유지. 신규 테스트 10개 및 전체 147개 통과. 실제 PostgreSQL CI 결과/실서버 확인 별도.
+
 # CHANGELOG
 
 ## 4.7.1 OpenDART 조회 수정
