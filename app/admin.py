@@ -100,8 +100,13 @@ def test_connection(provider:str):
                     last=max(data)
                     results.append({'series':series.name,'state':'ok','count':len(data),'period':str(last),'value':data[last]})
                 except Exception as e:
-                    # Fixed messages prevent reflected secrets from remote responses.
-                    msg='API 키 또는 통계표 설정을 확인하세요.' if isinstance(e,p.NotConfigured) else 'API 연결/응답 실패 · 키, 항목, 네트워크 및 호출 제한을 확인하세요.'
+                    # ECOS diagnostics contain only locally defined messages.
+                    if isinstance(e, (p.EcosKeyError, p.EcosResponseError)):
+                        msg = str(e)
+                    elif isinstance(e, p.NotConfigured):
+                        msg = 'API 키 또는 통계표 설정을 확인하세요.'
+                    else:
+                        msg = 'API 연결/응답 실패 · 키, 항목, 네트워크 및 호출 제한을 확인하세요.'
                     results.append({'series':BY_ID[sid].name,'state':'error','message':msg})
         return {'provider':provider,'ok':all(r['state']=='ok' for r in results),'results':results,'note':'표본 응답 검사이며 원자료 값(변환 전)입니다. 전체 이력 및 지표의 정확성은 별도 확인이 필요합니다.'}
     finally: LOCK.release()

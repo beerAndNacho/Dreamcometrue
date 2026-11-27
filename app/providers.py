@@ -7,6 +7,9 @@ from .catalog import SERIES
 class NotConfigured(Exception): pass
 class DataError(Exception): pass
 
+class EcosKeyError(NotConfigured): pass
+class EcosResponseError(DataError): pass
+
 def number(raw):
     try:
         v=float(str(raw).replace(',',''))
@@ -60,13 +63,22 @@ def fred(client,s,start,end,cfg=None):
 
 def ecos(client,s,start,end,cfg=None):
     key=(cfg if cfg is not None else os.environ).get('ECOS_API_KEY','').strip()
-    if not key: raise NotConfigured('ECOS_API_KEY 필요')
-    if key=='sample': raise NotConfigured('ECOS sample 키는 전체 이력 수집에 사용할 수 없습니다.')
+    if not key:
+        raise EcosKeyError('저장된 ECOS API 키가 없습니다. 한국은행 ECOS 카드에 발급 키를 입력하고 저장하세요.')
+    if key == 'sample':
+        raise EcosKeyError('ECOS 공개 sample 키는 실데이터 수집에 사용할 수 없습니다. 발급받은 키를 저장하세요.')
     fmt='%Y%m%d' if s.freq=='D' else '%Y%m'; rows=[]; offset=1
     for _ in range(100):
         path=f'https://ecos.bok.or.kr/api/StatisticSearch/{key}/json/kr/{offset}/{offset+999}/{s.code}/{s.freq}/{start.strftime(fmt)}/{end.strftime(fmt)}/{s.item}'
         j=get(client,path).json(); block=j.get('StatisticSearch')
-        if not block: raise DataError('ECOS 응답 오류: 키 및 통계 항목 확인')
+        if not block:
+            result = j.get('RESULT')
+            code = result.get('CODE') if isinstance(result, dict) else None
+            if code == 'INFO-100':
+                raise EcosKeyError('ECOS가 인증키를 거부했습니다 (INFO-100). 발급 상태와 입력한 키를 확인하세요.')
+            if code == 'INFO-200':
+                raise EcosResponseError('ECOS에 조회 기간의 데이터가 없습니다 (INFO-200). 조회 기간과 통계 항목을 확인하세요.')
+            raise DataError('ECOS 응답 오류: 키 및 통계 항목 확인')
         batch=block.get('row',[])
         for row in batch:
             if row.get('STAT_CODE') not in (None,s.code) or row.get('ITEM_CODE1') not in (None,s.item):
