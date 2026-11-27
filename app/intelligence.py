@@ -5,7 +5,8 @@ Single-process app: reserve each paid attempt before sending, including failures
 from datetime import date, datetime, timezone, timedelta
 from pathlib import Path
 from typing import Literal
-import json, math, re, threading, hashlib
+import json, math, re, threading, hashlib, logging
+from .report_prompt import external_prompt
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, PlainTextResponse
@@ -73,6 +74,15 @@ def _facts(period,code,busy):
             if x and not state['stale']:
                 for k,label in [('foreign','외국인'),('institution','기관'),('individual','개인')]:
                     if x.get(k) is not None:records.append(evidence_entry(market+'_'+k,market+' '+label+' 순매수',x[k],'억원',x['date'],km.SOURCES['KIS']))
+                for n in (5,20,60):
+                    totals=state['totals'][str(n)]
+                    for k,label in [('foreign','외국인'),('institution','기관'),('individual','개인')]:
+                        val=totals.get(k)
+                        if val is not None:
+                            span=state['rows'][-n]['date']+' ~ '+x['date']
+                            records.append(evidence_entry(f'{market}_{k}_{n}',f'{market} {label} {n}개 관측일 누적 순매수',val,'억원',span,km.SOURCES['KIS']))
+                    if any(totals.get(k) is None for k in ('foreign','institution','individual')):
+                        missing.append(f'{market} {n}개 관측일 수급 일부 누락')
             else:missing.append(market+' 수급')
         # Only provider-fetched pressure facts. User-imported futures and short balances stay local.
         for market in km.MARKETS:
@@ -121,6 +131,8 @@ def _facts(period,code,busy):
     model=d['model']
     if model['score'] is not None:
         records.append(evidence_entry('model_risk','규칙 기반 미국 시장 위험도',model['score'],'점 (확률 아님)',d['asof'],'https://fred.stlouisfed.org/'))
+        sp=next(x for x in d['indicators'] if x['id']=='sp500')
+        records.append(evidence_entry('model_ma_gap','S&P 500 200거래일 평균 대비 괴리율',model['inputs']['ma_gap'],'%',sp['period'],sp['url']))
     scenarios=[]
     if model['score'] is not None:
         scenarios=[{'kind':'up','text':'조건부 상승 환경: 변동성·신용 스프레드 안정 및 장기 추세 유지 또는 회복 여부를 확인합니다.','refs':['vix','hy','sp500']},{'kind':'down','text':'조건부 하락 환경: 변동성·신용 스프레드 확대와 장기 추세 약화가 함께 나타나는지 확인합니다.','refs':['vix','hy','sp500']}]
@@ -199,7 +211,9 @@ def config_state(cfg):
 
 def serialized(r,detail=True):
     out={'id':r.id,'created':r.created.isoformat()+'Z','day':str(r.day),'period':r.period,'provider':r.provider,'model_name':r.model,'state':r.state,'input_tokens':r.input_tokens,'output_tokens':r.output_tokens}
-    if detail:out['report']=json.loads(r.payload)
+    if detail:
+        out['report']=json.loads(r.payload)
+        out['prompt']=external_prompt(out['report'])
     return out
 
 
@@ -208,7 +222,8 @@ def page():return FileResponse(Path(__file__).parent/'static'/'intelligence.html
 
 @router.get('/api/intelligence',dependencies=[Depends(require_admin)])
 def preview(period:Literal['daily','weekly']='daily',code:str|None=Query(None,pattern=r'^\d{6}$')):
-    return {'report':facts(period,code),'config':config_state(load_settings()),'watch':[{'code':x['code'],'name':x['name']} for x in km.watches()]}
+    data=facts(period,code)
+    return {'report':data,'prompt':external_prompt(data),'config':config_state(load_settings()),'watch':[{'code':x['code'],'name':x['name']} for x in km.watches()]}
 
 class Generate(BaseModel):
     period:Literal['daily','weekly']='daily'
@@ -218,9 +233,19 @@ class Generate(BaseModel):
 
 @router.post('/api/intelligence/generate',dependencies=[Depends(require_write)])
 def generate(req:Generate):
+    return _generate(req)
+
+
+def _generate(req:Generate, automatic=False):
     if not GUARD.acquire(blocking=False):raise HTTPException(409,'리포트 생성 중입니다.')
     try:
-        cfg=load_settings();data=facts(req.period,req.code)
+        cfg=load_settings()
+        if automatic:
+            if DEMO or (req.ai and cfg.get('AI_REPORT_AUTO_RUN')!='1'):
+                return None
+            if not req.ai and cfg.get('AI_REPORT_AUTO_SAVE')!='1' and cfg.get('AI_REPORT_AUTO_RUN')!='1':
+                return None
+        data=facts(req.period,req.code)
         if data['busy']:raise HTTPException(409,'데이터 수집 완료 후 다시 실행하세요.')
         p=cfg['AI_PROVIDER'] if req.ai else 'rules';key=model=''
         if req.ai:
@@ -239,6 +264,8 @@ def generate(req:Generate):
             if existing:return {**serialized(existing),'reused':True}
             if req.ai:
                 attempts=db.scalar(select(func.count()).select_from(InsightReport).where(InsightReport.day==today(),InsightReport.provider!='rules'))
+                # Automatic requests never retry, including after a failed/manual paid attempt.
+                if automatic and attempts: return None
                 if attempts>=int(cfg['AI_DAILY_LIMIT']):raise HTTPException(429,'오늘 AI 호출 한도에 도달했습니다. 규칙 기반 리포트는 사용 가능합니다.')
             row=InsightReport(created=now(),day=today(),period=req.period,provider=p,model=model,state='running' if req.ai else 'ok',fingerprint=fingerprint,payload=json.dumps(data,ensure_ascii=False,allow_nan=False),input_tokens=None,output_tokens=None);db.add(row);db.flush();rid=row.id
         if not req.ai:return {**serialized(row),'reused':False}
@@ -253,6 +280,20 @@ def generate(req:Generate):
                 row=db.get(InsightReport,rid);row.state=state;row.input_tokens=inp;row.output_tokens=out;row.payload=json.dumps(data,ensure_ascii=False,allow_nan=False)
         return {**serialized(row),'reused':False}
     finally:GUARD.release()
+
+def archive_after_collect():
+    """Scheduled successful collection only; always preserve free facts before optional AI."""
+    if DEMO:
+        return
+    try:
+        saved=_generate(Generate(), automatic=True)
+        if saved is None:
+            return
+        _generate(Generate(ai=True, consent=True), automatic=True)
+    except Exception:
+        # Keep the successful collection and free report; never log keys or input data.
+        logging.getLogger(__name__).warning('Scheduled report skipped or failed; collection data preserved')
+
 
 @router.get('/api/intelligence/history',dependencies=[Depends(require_admin)])
 def history(limit:int=Query(50,ge=1,le=100)):

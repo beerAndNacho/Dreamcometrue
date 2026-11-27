@@ -109,7 +109,12 @@ def schedule(stop):
         local=datetime.now(KST)
         last_date=last.started.replace(tzinfo=ZoneInfo('UTC')).astimezone(KST).date() if last else None
         if local.hour>=hour and (last_date!=local.date() or (last and last.started.replace(tzinfo=ZoneInfo('UTC')).astimezone(KST).hour<hour)):
-            try: collect(full=local.weekday()==6)
+            try:
+                result=collect(full=local.weekday()==6)
+                if result['state'] in ('ok','partial'):
+                    # Collection lock is released; the report can safely read the new snapshot.
+                    from .intelligence import archive_after_collect
+                    archive_after_collect()
             except Exception: pass  # Run status reflects failure; retry manually or next day.
         stop.wait(60)
 
