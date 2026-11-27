@@ -12,7 +12,7 @@ from pathlib import Path
 from sqlalchemy import select, delete
 from .db import DEMO, Session, Status, Run, Obs, Revision, SeriesSource, now
 from .catalog import BY_ID, SERIES
-from .settings import password, load_settings, public_settings, save_settings, DEFAULTS, QUERIES, clean_query
+from .settings import password, load_settings, public_settings, save_settings, DEFAULTS, QUERIES, effective_kosis_query
 from .collect import LOCK, today
 from .hosting import HOSTED, PUBLIC_ORIGIN
 from . import providers as p
@@ -50,7 +50,7 @@ def put_settings(req:SettingsUpdate):
         if any(len(v)>8000 for v in req.values.values()): raise HTTPException(400,'설정값이 너무 깁니다.')
         try:
             before=load_settings()
-            changed_queries={k for k in QUERIES if k in req.values and before[k]!=clean_query(req.values[k])}
+            changed_queries={k for k in QUERIES if k in req.values and before[k]!=effective_kosis_query(k,req.values[k])}
             changed_ids=[s.id for s in SERIES if s.code in changed_queries]
             if changed_ids and not DEMO:
                 with Session() as db:
@@ -102,6 +102,8 @@ def test_connection(provider:str):
                 except Exception as e:
                     # Fixed messages prevent reflected secrets from remote responses.
                     msg='API 키 또는 통계표 설정을 확인하세요.' if isinstance(e,p.NotConfigured) else 'API 연결/응답 실패 · 키, 항목, 네트워크 및 호출 제한을 확인하세요.'
+                    if provider=='KOSIS' and isinstance(e,(p.KosisError,p.NotConfigured)):
+                        msg=str(e)  # only locally generated, allowlisted messages
                     results.append({'series':BY_ID[sid].name,'state':'error','message':msg})
         return {'provider':provider,'ok':all(r['state']=='ok' for r in results),'results':results,'note':'표본 응답 검사이며 원자료 값(변환 전)입니다. 전체 이력 및 지표의 정확성은 별도 확인이 필요합니다.'}
     finally: LOCK.release()

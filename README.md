@@ -1,6 +1,16 @@
-# Macro Invest 4.5 — Intelligence Observatory / 글로벌 투자 관측소
+# Macro Invest 4.5.1 — Intelligence Observatory / 글로벌 투자 관측소
 
 개인용 로컬 또는 HTTPS 호스팅 웹 서비스. FastAPI + SQLAlchemy + PostgreSQL(Docker) 또는 SQLite(간편 실행) + 순수 HTML/CSS/JS. 38개 지표 수집 및 분석, 우주 관측소 테마, 관리자 콘솔, 지표 품질 확인, 리포트 다운로드, 서버 포트폴리오 저장을 지원합니다. 거래 주문은 실행하지 않습니다.
+
+## 4.5.1 KOSIS 연동 수정
+
+- KOSIS 인증키는 발급된 원문 그대로 입력합니다. `+`, `/`, `=`가 포함된 키를 허용하며 HTTP 요청에서 안전하게 인코딩합니다. 실제 키는 공유하거나 GitHub에 올리지 마세요.
+- 빈 통계표 설정의 기본값: 선행 `orgId=101&tblId=DT_1C8015&itmId=T1&objL1=A03`, 동행 `orgId=101&tblId=DT_1C8015&itmId=T1&objL1=B03`. 공개 조회 사례를 기반으로 한 설정이며 실제 응답의 지표명/코드/주기를 확인해 다른 계열을 저장하지 않도록 검사합니다. 기존에 직접 지정한 설정은 유지됩니다.
+- `/admin` → KOSIS의 **기본 순환변동치 설정 적용** → 설정 저장 → 연결 검사. 기존 설정이 비어 있다면 키 저장만으로도 기본 쿼리가 적용됩니다. 정상 응답에는 조회 건수와 최근 관측월/값이 표시됩니다. 연결 검사는 DB에 쓰지 않습니다. 성공 후 전체 수집을 실행합니다.
+- 표준 JSON을 받기 위해 `jsonVD=Y`를 지정합니다. 오류 코드 10/11(인증), 20/21(변수), 30/31(자료/기간), 40~42(제한), 50(공급처 서버)을 구분하며 원본 오류 본문 및 키는 표시하지 않습니다. HTTP/네트워크 오류 및 JSON 형식 오류도 별도 안내합니다.
+- 오류 11은 KOSIS 공유서비스의 활용신청 승인 상태, 키의 유효기간, 정확한 발급 원문을 확인하세요. 20/21/30은 통계표 설정 및 수록기간을 확인하세요. HTTP 오류는 서버에서 외부 HTTPS 접속 가능 여부와 공급처 상태를 확인하세요.
+- 기존 이력 삭제는 자동 수행하지 않습니다. 통계표가 바뀌거나 출처 확인 오류가 생기면 DB/CSV 백업 및 원자료 확인 후 기존의 명시적 초기화 절차를 사용하세요. `DEMO_MODE=1`에서는 실제 연결 검사가 금지되므로 실데이터 모드인지 확인하세요.
+- [KOSIS 공식 API 안내](https://kosis.kr/openapi/devGuide/devGuide_0201List.do), [오류 유형 FAQ](https://sso.kosis.kr/openapi/community/community_0401List.do), [통계표](https://kosis.kr/statHtml/statHtml.do?orgId=101&tblId=DT_1C8015), [코드 공개 조회 사례](https://github.com/Seungwoo321/eidc/). 실계정 응답 미검증: 연결 검사에서 실제 지표명·최근값을 원자료와 대조하세요.
 
 ## 4.5 신규: 투자 분석센터와 경제 캘린더
 
@@ -76,9 +86,9 @@ docker compose exec app cat /app/data/settings/live/admin-password.txt
 | FRED | 27 | 필요 | https://fred.stlouisfed.org/docs/api/api_key.html |
 | OECD | 3 | 불필요 | https://data-explorer.oecd.org/ |
 | 한국은행 ECOS | 6 | 필요 | https://ecos.bok.or.kr/api/ |
-| KOSIS | 2 | 필요 + 통계표 선택 | https://kosis.kr/openapi/ |
+| KOSIS | 2 | 필요 (기본 통계표 자동 설정) | https://kosis.kr/openapi/ |
 
-KOSIS OpenAPI '통계자료 > 통계표선택(URL 생성)'에서 경기종합지수의 전국 월간 선행종합지수 **순환변동치** 한 항목을 선택합니다. 생성 URL 전체 또는 쿼리만 선행지수 입력란에 붙여 넣으세요. 동행종합지수 순환변동치도 동일하게 설정합니다. URL의 `apiKey`와 기간은 저장하지 않고 별도 API 키 입력 및 프로그램 조회 기간을 적용합니다. 필수 파라미터는 orgId, tblId, itmId, objL1입니다. 실제 통계표 번호를 확인할 수 없어 임의 값을 제공하지 않았습니다. 통계표를 변경하고 기존 데이터가 있을 때에는 기존 해당 지표 관측값/수정 이력 삭제를 명시적으로 확인받습니다. 변경 전 CSV/DB 백업을 권장합니다. 삭제하면 해당 지표를 다시 수집해야 합니다.
+사용자 지정 통계표가 필요한 경우 KOSIS OpenAPI '통계자료 > 통계표선택(URL 생성)'에서 경기종합지수의 전국 월간 선행종합지수 **순환변동치** 한 항목을 선택합니다. 생성 URL 전체 또는 쿼리만 선행지수 입력란에 붙여 넣으세요. 동행종합지수 순환변동치도 동일하게 설정합니다. URL의 `apiKey`와 기간은 저장하지 않고 별도 API 키 입력 및 프로그램 조회 기간을 적용합니다. 필수 파라미터는 orgId, tblId, itmId, objL1입니다. 4.5.1은 위 기본 통계표를 제공하며 실제 계정의 응답 검증이 필요합니다. 통계표를 변경하고 기존 데이터가 있을 때에는 기존 해당 지표 관측값/수정 이력 삭제를 명시적으로 확인받습니다. 변경 전 CSV/DB 백업을 권장합니다. 삭제하면 해당 지표를 다시 수집해야 합니다.
 
 FRED 공식 관측 API: https://fred.stlouisfed.org/docs/api/fred/series_observations.html
 ECOS 코드: 기준금리 722Y001/0101000, 국고채 3/10년 817Y002/010200000 및 010210000, 원/달러 731Y001/0000001, 코스피/코스닥 802Y001/0001000 및 0089000. OECD CLI: amplitude adjusted / OECD harmonised, OECD.SDD.STES / DSD_STES@DF_CLI. 제공처의 실제 키·데이터 응답 확인 필요. 외부 API 및 시리즈 제공 범위/이용약관은 바뀔 수 있습니다.
