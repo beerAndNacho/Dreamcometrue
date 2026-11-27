@@ -16,7 +16,7 @@ import os
 base='https://example.onrender.com'
 auth=('admin',os.environ['ADMIN_PASSWORD'])
 with TestClient(app,base_url=base) as c:
-    for path in ('/', '/admin','/api/dashboard','/static/app.js','/docs','/openapi.json'):
+    for path in ('/', '/admin','/api/dashboard','/static/app.js','/notifications','/api/notifications','/manifest.webmanifest','/sw.js','/docs','/openapi.json'):
         assert c.get(path).status_code==401, path
     assert c.get('/healthz').status_code==200
     assert c.get('/',auth=auth).status_code==200

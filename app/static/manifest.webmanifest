@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "Macro Invest · Orbital Observatory",
+  "short_name": "Macro Invest",
+  "description": "개인용 경제지표와 시장 수급 관측소",
+  "lang": "ko",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#080f20",
+  "theme_color": "#101a30",
+  "icons": [
+    {"src":"/static/app-icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+    {"src":"/static/app-icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}

@@ -1,3 +1,13 @@
+# Macro Invest 4.6.0 — 검증 기록
+
+- 기준: 4.5.1 Git tree `7f251c9ae421878357f5ed9660d6189f0ea2e3f7`.
+- `python -m pytest -q`: **102 passed** (91 회귀 + 11 신규). 임시 SQLite/설정 및 MockTransport/모의 전송: 암호화/비노출 및 KOSIS 보존, 종가 규칙/관측일·신선도 검사, 일간 수집 완료 대기, 위험 기준선/중복/재시작, BLS/배당 일정 및 메모 제외, 명시적 테스트와 60초 간격, 일일 상한과 실패 후 보류, 데모/관리자 보호, 매니페스트/아이콘 및 캐시 미사용 검사.
+- Python 컴파일 및 모든 앱 JS 문법 검사 통과.
+- `python -m tools.check_notifications_ui`: PC 1440×1100, 모바일 390×844 Chromium에서 알림 화면, 키 저장 후 비노출/다시 열기, 규칙 보존, 키 제거, 데모 차단, 관리자 진입/KOSIS 기본값, 가로 넘침/JS 오류를 FastAPI TestClient 응답 브리지로 검사. 정상적인 로컬 서버는 Python HTTP 클라이언트로 확인했으나 Chromium 직접 접속은 환경 정책으로 차단됨. 서비스 워커 실제 설치, 모바일 OS 홈 화면, HTTPS 인증, 실제 오프라인 전환, Telegram 수신은 미검증. 전체 기존 브라우저 회귀는 이번에는 실행하지 않았고 기존 91개 자동화 회귀는 통과했습니다.
+- 기존 API 설정·DB 스키마의 테이블 보존을 목표로 추가 테이블만 사용. 실 사용자 DB·키, 실제 외부 API, PostgreSQL 및 운영 배포는 확인 필요. 버그/알림 누락 없음이나 투자 성과를 보장하지 않습니다.
+
+---
+
 # Macro Invest 4.5.1 — KOSIS 연동 검증
 
 - 기반: 4.5.0 ZIP 및 Git tree `05a3780f92b97f013882a5e2cb550a1a959bdaa3`.

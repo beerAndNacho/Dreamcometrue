@@ -10,7 +10,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 from pathlib import Path
 from sqlalchemy import select, delete
-from .db import DEMO, Session, Status, Run, Obs, Revision, SeriesSource, now
+from .db import DEMO, Session, Status, Run, Obs, Revision, SeriesSource, AlertState, now
 from .catalog import BY_ID, SERIES
 from .settings import password, load_settings, public_settings, save_settings, DEFAULTS, QUERIES, effective_kosis_query
 from .collect import LOCK, today
@@ -60,10 +60,12 @@ def put_settings(req:SettingsUpdate):
             after=save_settings(req.values)
         except ValueError as e:
             # Never include raw key/URL input in errors (date.fromisoformat etc.).
-            raise HTTPException(400,'설정 형식 오류: API 키, 조회 시작일, KOSIS 항목, 수집 시간을 확인하세요.') from None
+            raise HTTPException(400,'설정 형식 오류: API 키, 조회 시작일, KOSIS 항목, 수집 시간 또는 알림 입력값을 확인하세요.') from None
         changed={k for k in DEFAULTS if before[k]!=after[k]}
         if not DEMO and changed:
             with Session.begin() as db:
+                if changed & {'ALERT_ENABLED','ALERT_RISK','TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID'}:
+                    db.execute(delete(AlertState).where(AlertState.key=='risk'))
                 if changed_ids and req.reset_changed_kosis:
                     db.execute(delete(Obs).where(Obs.series.in_(changed_ids)))
                     db.execute(delete(Revision).where(Revision.series.in_(changed_ids)))

@@ -108,3 +108,19 @@ class MarketWatch(Base):
     code: Mapped[str]=mapped_column(String(6),primary_key=True)
     name: Mapped[str]=mapped_column(String(80))
     corp_code: Mapped[str]=mapped_column(String(8),default='')
+
+class AlertDelivery(Base):
+    """Durable claim before network delivery; uncertain attempts are never replayed."""
+    __tablename__ = 'alert_deliveries'
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    day: Mapped[date] = mapped_column(Date, index=True)
+    kind: Mapped[str] = mapped_column(String(24))
+    state: Mapped[str] = mapped_column(String(20))
+    created: Mapped[datetime] = mapped_column(DateTime)
+    finished: Mapped[datetime|None] = mapped_column(DateTime, nullable=True)
+    message: Mapped[str] = mapped_column(String(160))
+
+class AlertState(Base):
+    __tablename__ = 'alert_state'
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(String(64))
