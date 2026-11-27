@@ -152,7 +152,7 @@ def test_external_prompt_no_ai_and_historical(clean, monkeypatch):
         orig=a.facts
         def changed(*args,**kwargs):
             d=orig(*args,**kwargs)
-            d['evidence'][0]['value']=123456789
+            if d['evidence']:d['evidence'][0]['value']=123456789
             return d
         monkeypatch.setattr(a,'facts',changed)
         assert c.get('/api/intelligence?period=weekly',auth=AUTH).json()['prompt']!=old

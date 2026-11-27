@@ -12,10 +12,10 @@ from app.collect import today,LOCK
 from app.db import Session,DailySnapshot
 
 
-def test_all_38_guides_and_metadata():
+def test_all_catalog_guides_and_metadata():
     assert set(GUIDE)==set(BY_ID)
     with TestClient(app) as c:
-        g=c.get('/api/guide').json()['indicators'];assert len(g)==38
+        g=c.get('/api/guide').json()['indicators'];assert len(g)==len(BY_ID)
         for x in g:
             assert all(x[k] for k in ('definition','rising','falling','caution','frequency_label','url'))
             assert c.get('/api/guide/'+x['id']).json()==x

@@ -22,7 +22,8 @@ INSTRUCTIONS = """당신은 한국어 거시경제·주식시장 리서치 분�
 8. 대응 체크리스트: 분할 접근·현금 비중·추가 확인을 조건부로 논의하고 단정적 매매 지시는 피할 것
 9. 데이터 품질·누락 및 다음 확인 사항
 핵심 수치 및 판단에는 JSON에 있는 근거 ID, 관측일과 출처를 표시하세요.
-관측된 사실, 분석적 해석, 가정, 판단 보류를 명확히 구분하세요."""
+관측된 사실, 분석적 해석, 가정, 판단 보류를 명확히 구분하세요.
+history_context의 windows는 해당 관측일 기준 1/3/6/12개월 이전 관측값 비교입니다. delta는 표시 단위 차이이고 relative_pct만 상대 변화율입니다. 5년 백분위는 직전 5년의 최신 개정 관측값 중 상대 위치이며 하락확률이 아닙니다. null 또는 누락된 기간은 비교 보류하세요. 순유동성 참고치와 SOFR-IORB 금리차는 동일 관측일 파생값이며 모델 점수에 합산하지 않습니다."""
 
 def external_prompt(report):
     """Never export arbitrary report fields, portfolio, settings or user calendar."""
@@ -44,7 +45,18 @@ def external_prompt(report):
     data['model']['inputs'] = pick(model.get('inputs') or {}, ('vix', 'hy', 'ma_gap', 'phase'))
     data['evidence'] = [pick(x, ('id', 'name', 'value', 'unit', 'period', 'source', 'change'))
                         for x in report['evidence']]
-    for entry in data['evidence']:
+    for entry, original in zip(data['evidence'],report['evidence']):
+        if original.get('sources'):
+            entry['sources']=list(original['sources'])
+            entry['note']=original.get('note')
+            entry['components']=list(original.get('components',[]))
+        ctx=original.get('history_context')
+        if ctx:
+            clean=pick(ctx,('frequency','observation_count','previous_period','previous_value'))
+            clean['windows']={k:pick(v,('period','value','delta','relative_pct')) for k,v in ctx.get('windows',{}).items() if k in ('1m','3m','6m','12m')}
+            five=ctx.get('five_year')
+            clean['five_year']=pick(five,('from','to','count','mean','percentile')) if five else None
+            entry['history_context']=clean
         if isinstance(entry['change'], dict):
             entry['change'] = pick(entry['change'], ('previous', 'period', 'kind'))
     banner = '가상 자료 — 실제 투자 금지\n\n' if data['demo'] else ''
