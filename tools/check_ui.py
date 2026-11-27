@@ -40,10 +40,30 @@ with tempfile.TemporaryDirectory() as temp:
             page,errors=page_for('/');page.wait_for_function("document.querySelectorAll('#marketMetrics .metric').length===8 && document.querySelector('#cliChart svg')",timeout=12000)
             assert '38' in page.locator('#qualitySummary').inner_text()
             assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),(label,'overflow')
+            page.wait_for_function("document.querySelectorAll('#guideList .guide-card').length===38 && document.querySelector('#orbitChart svg') && document.querySelector('#simResult .sim-score')",timeout=12000)
+            assert page.locator('#briefNotes .brief-note').count()<=3
             page.screenshot(path=str(out/f'dashboard-{label}.png'))
+            page.locator('#orbitPanel').screenshot(path=str(out/f'orbit-{label}.png'))
+            page.locator('#simCrisis').click();page.wait_for_function("document.querySelector('#simResult .sim-score strong')?.textContent==='100'",timeout=12000)
+            page.locator('#scenarioPanel').screenshot(path=str(out/f'scenario-{label}.png'))
+            page.locator('#simActual').click();page.wait_for_function("document.querySelector('#simResult .sim-score strong')?.textContent===String(dashboard.model.score)",timeout=12000)
+            page.locator('#guideSearch').fill('VIX');assert page.locator('#guideList .guide-card').count()==1
+            page.locator('#guideList summary').click();assert '변동성' in page.locator('#guideList dd').first.inner_text()
+            page.locator('#learningPanel').screenshot(path=str(out/f'guide-{label}.png'))
+            page.locator('#guideSearch').fill('')
+            page.locator('#search').fill('미국 M2');page.locator('#indicators [data-favorite]').click()
+            assert page.locator('#marketMetrics .metric').count()==9
+            page.locator('#search').fill('');page.locator('#favoriteOnly').check();assert page.locator('#indicators tr').count()==1
+            page.locator('#indicators [data-favorite]').click();assert '조건에 맞는 지표' in page.locator('#indicators').inner_text()
+            page.locator('#resetFilters').click();assert page.locator('#indicators tr').count()==38
             page.locator('#search').fill('코스피');assert page.locator('#indicators tr').count()==1
             page.locator('#indicators [data-series]').click();page.wait_for_function("document.querySelector('#detailChart svg') && document.querySelector('#detailTitle').textContent.includes('코스피')",timeout=12000)
+            assert '한국 유가증권시장' in page.locator('#detailGuide').inner_text()
+            page.locator('#detailChart input[type=range]').fill('0');assert page.locator('#detailChart .chart-values').inner_text().startswith('20')
             page.locator('#symbol').fill('기아 테스트');page.locator('#eps').fill('10000');page.locator('#price').fill('100000');page.locator('#saveHolding').click();assert '기아 테스트' in page.locator('#holdings').inner_text()
+            page.locator('#holdings [data-edit]').click();assert page.locator('#symbol').input_value()=='기아 테스트'
+            page.locator('#qty').fill('2');page.locator('#saveHolding').click();assert '200,000' in page.locator('#holdings').inner_text()
+            assert '200,000원' in page.locator('#holdingKrw').inner_text()
             page.locator('#savePortfolioServer').click();page.wait_for_function("document.querySelector('#portfolioSync').textContent.includes('서버 저장 완료')",timeout=12000)
             page.locator('#holdings [data-remove]').click();page.locator('#loadPortfolioServer').click();page.wait_for_function("document.querySelector('#holdings').textContent.includes('기아 테스트')",timeout=12000)
             page.locator('#pStock').fill('5000');page.locator('#pMode').select_option('manual');assert '차이' in page.locator('#pRebalance').inner_text()
@@ -51,9 +71,10 @@ with tempfile.TemporaryDirectory() as temp:
             page.close()
             page,errors=page_for('/admin');page.wait_for_function("document.querySelector('#adminStats').textContent.includes('38')",timeout=12000)
             assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),(label,'admin overflow')
+            assert page.locator('#setupSteps .setup-step').count()==5
             page.screenshot(path=str(out/f'admin-{label}.png'))
             page.locator('#FRED_API_KEY').fill('ui-mock-key');page.locator('#saveSettings').click();page.wait_for_function("document.querySelector('#flag-FRED').textContent.includes('등록됨') && document.querySelector('#FRED_API_KEY').value===''",timeout=12000)
             assert not errors,errors
-            print(label+': layout, charts, holding save/restore, admin settings OK')
+            print(label+': layout, briefing, orbit, scenario, guide, favorite, date cursor, holding edit/save/restore, admin setup OK')
             context.close()
         browser.close()

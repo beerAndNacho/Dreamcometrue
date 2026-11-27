@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from datetime import date, datetime, timezone
+from datetime import date
 import threading, csv, io, math
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Query, Depends, Request
@@ -11,16 +11,20 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy import select, text
-from .db import Session, Status, Run, Revision, SeriesSource, DEMO, init, history
+from .db import Session, Run, Revision, DEMO, init, history
 from .catalog import SERIES, BY_ID, metadata
 from .collect import collect, schedule, today, LOCK
-from .analysis import transform, fresh, cycle_fresh, risk, backtest
+from .analysis import transform, backtest, score_inputs
 from .demo import seed
 from .admin import router as admin_router, require_write, require_admin, auth
-from .settings import password, load_settings, query_fingerprint
+from .settings import password
 from .hosting import HOSTED, HOSTS
 from .portfolio import router as portfolio_router
 from .middleware import BodyLimitMiddleware
+from .dashboard_data import build_dashboard, iso
+from .briefing import build_briefing, save_daily_snapshot
+from .guide import explain
+from typing import Literal
 
 @asynccontextmanager
 async def lifespan(app):
@@ -28,13 +32,15 @@ async def lifespan(app):
     password()
     with Session.begin() as db:
         db.execute(update(Run).where(Run.state=='running').values(state='interrupted'))
-    if DEMO: seed()
+    if DEMO:
+        seed()
+        save_daily_snapshot(today(), build_dashboard(today()))
     stop=threading.Event(); t=threading.Thread(target=schedule,args=(stop,),daemon=True); t.start()
     yield
     stop.set()
     t.join(timeout=2)
 
-app=FastAPI(title='Macro Invest',version='3.0.0',lifespan=lifespan)
+app=FastAPI(title='Macro Invest',version='4.0.0',lifespan=lifespan)
 STATIC=Path(__file__).parent/'static'
 app.add_middleware(TrustedHostMiddleware,allowed_hosts=HOSTS, www_redirect=False)
 app.include_router(admin_router)
@@ -81,31 +87,30 @@ def healthz():
 @app.get('/')
 def index(): return FileResponse(STATIC/'index.html')
 
-def iso(v): return v.isoformat()+'Z' if v else None
-
 @app.get('/api/dashboard')
 def dashboard():
-    asof=today(); output=[]; rows={}
-    cfg=None
-    if not DEMO:
-        try: cfg=load_settings()
-        except RuntimeError: pass
-    with Session() as db:
-        statuses={r.series:r for r in db.scalars(select(Status))}
-        for s in SERIES:
-            raw=history(db,s.id,limit=420); r=transform(s.id,raw); rows[s.id]=r; st=statuses.get(s.id)
-            last=r[-1] if r else None
-            # Status must be okay as well as recent for live signals. Keep stale values visible.
-            isfresh=fresh(s.id,r,asof) and bool(st and st.state in ('ok','demo'))
-            if s.provider=='KOSIS' and not DEMO and last:
-                src=db.get(SeriesSource,s.id)
-                isfresh=isfresh and bool(cfg and src and src.fingerprint==query_fingerprint(cfg[s.code]))
-            output.append({**metadata(s),'value':last[1] if last else None,'period':str(last[0]) if last else None,'change':last[1]-r[-2][1] if len(r)>1 else None,'fresh':isfresh,'age_days':(asof-last[0]).days if last else None,'trend':[round(v,6) for _,v in r[-30:]],'state':st.state if st else 'pending','message':st.message if st else '수집 전','last_success':iso(st.success) if st else None})
-        last_run=db.scalar(select(Run).order_by(Run.id.desc()).limit(1))
-    usable={x['id']:rows[x['id']] if x['fresh'] else [] for x in output}
-    cycles={k:cycle_fresh(k,usable[k],asof) for k in ('cli_us','cli_kr','cli_uk','kr_leading','kr_coincident')}
-    model=risk(usable,asof,cycles['cli_us']['phase'])
-    return {'demo':DEMO,'asof':str(asof),'generated_at':datetime.now(timezone.utc).isoformat(), 'quality':{'fresh':sum(x['fresh'] for x in output),'total':len(output),'stale':sum(x['value'] is not None and not x['fresh'] for x in output),'missing':sum(x['value'] is None for x in output)},'indicators':output,'cycles':cycles,'model':model,'busy':LOCK.locked(),'last_run':{'state':last_run.state,'started':iso(last_run.started),'finished':iso(last_run.finished)} if last_run else None}
+    d=build_dashboard(today(),busy=LOCK.locked())
+    d['briefing']=build_briefing(d)
+    return d
+
+@app.get('/api/guide')
+def guide():
+    return {'indicators':[explain(s.id) for s in SERIES]}
+
+@app.get('/api/guide/{sid}')
+def guide_item(sid:str):
+    if sid not in BY_ID: raise HTTPException(404,'알 수 없는 지표')
+    return explain(sid)
+
+class Scenario(BaseModel):
+    vix:float=Field(ge=0,le=1000,allow_inf_nan=False)
+    hy:float=Field(ge=0,le=100,allow_inf_nan=False)
+    ma_gap:float=Field(gt=-100,le=10000,allow_inf_nan=False)
+    phase:Literal['회복','확장','둔화','하강']
+
+@app.post('/api/scenario')
+def scenario(req:Scenario):
+    return {**score_inputs(req.vix,req.hy,req.ma_gap,req.phase), 'hypothetical':True}
 
 @app.post('/api/collect',status_code=202,dependencies=[Depends(require_write)])
 def trigger():
@@ -176,4 +181,10 @@ def daily_report():
         lines.append(f"위험 점수 {m['score']}/100 ({m['label']}) | 주식/채권/현금: {' / '.join(map(str,m['allocation']))}%")
         for c in m['checks']: lines.append(f"- {c['label']}: {c['value']} ({c['points']}점)")
     lines.extend(['','위험 점수는 하락 확률이 아닙니다. 모델은 검증되지 않은 가설이며 매매 지시가 아닙니다.', '경제지표는 수정될 수 있습니다. 이용 및 재배포는 원 제공처의 라이선스를 따릅니다.'])
+    brief=d['briefing']
+    lines.extend(['','규칙 기반 아침 브리핑',brief['headline']])
+    lines.extend('- '+item['text'] for item in brief['notes'])
+    lines.append(brief['comparison_note'])
+    for item in brief['changes']:
+        lines.append(f"- {item['name']}: {item['previous']:,.2f} → {item['current']:,.2f} {item['unit']} ({item['kind']}, {item['previous_period']} → {item['period']})")
     return PlainTextResponse('\n'.join(lines),headers={'Content-Disposition':f'attachment; filename=macro-report-{d["asof"]}.txt'})

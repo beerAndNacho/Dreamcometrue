@@ -53,6 +53,12 @@ class PortfolioSnapshot(Base):
     payload: Mapped[str]=mapped_column(Text)
     updated: Mapped[datetime]=mapped_column(DateTime)
 
+class DailySnapshot(Base):
+    __tablename__='daily_market_snapshots'
+    day: Mapped[date]=mapped_column(Date,primary_key=True)
+    payload: Mapped[str]=mapped_column(Text)
+    updated: Mapped[datetime]=mapped_column(DateTime)
+
 class SeriesSource(Base):
     """Non-secret identity of the selected source table/item for configurable series."""
     __tablename__='series_sources'

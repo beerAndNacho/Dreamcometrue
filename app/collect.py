@@ -71,6 +71,13 @@ def collect(reserved=False, full=True):
         finally:
             with Session.begin() as db:
                 run=db.get(Run,rid); run.state=state; run.finished=now()
+            if state in ('ok','partial'):
+                try:
+                    from .dashboard_data import build_dashboard
+                    from .briefing import save_daily_snapshot
+                    day=today(); save_daily_snapshot(day,build_dashboard(day))
+                except Exception:
+                    logging.getLogger(__name__).warning('Daily snapshot failed; collection data preserved')
     finally: LOCK.release()
 
 def schedule(stop):
