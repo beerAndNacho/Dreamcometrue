@@ -1,3 +1,12 @@
+# 4.5 업데이트 배포 체크리스트
+
+- 기존 `macro-invest-v4` 브랜치와 PR #1을 검토 후 병합하세요. `main` 자동 배포에 앞서 DB 및 암호화 설정 파일을 안전하게 백업하고 CI 확인. 4.5의 `economic_calendar_manual`, `insight_reports` 테이블은 앱 시작 시 자동 생성되며 기존 테이블은 유지합니다.
+- `AI_PROVIDER=off`, `BLS_AUTO_REFRESH=0` 기본값. 관리자에서 설정할 수 있으므로 새 환경변수는 필수가 아닙니다. 실제 키와 `settings.key`는 Git에 커밋 금지. AI는 수동 동의 후 호출, 단일 서버 프로세스에서 일일 한도 관리. 다중 인스턴스/워커에서 운영하지 마세요. 제공처에서 별도 비용 제한을 설정하세요.
+- 실제 서비스에서 `/healthz`, `/admin#aiSetup`, `/intelligence` 확인. BLS 캘린더 수신, 수동 일정의 KST 및 공식 링크 확인. AI 사용 전 규칙 보고서 저장/이력 확인, 사용할 모델과 정책·요금 확인 후 테스트용 실제 호출 1회 및 사용량 점검.
+- 실제 외부 API와 배포는 미검증. 기존 서비스의 DB/설정 경로 유지 및 백업 후 롤백 가능하도록 기존 커밋 보존. 외부 네트워크 오류 시 규칙 리포트 계속 사용 가능.
+
+---
+
 # Macro Invest 4.0: Dreamcometrue 웹 배포
 
 대상 저장소: https://github.com/beerAndNacho/Dreamcometrue.git

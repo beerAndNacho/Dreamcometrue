@@ -1,3 +1,16 @@
+# Macro Invest 4.5 — 검증 기록
+
+검증일: 2026-11-27 KST. 기반: 4.4 ZIP / Git tree `0dedca2a56a342e1e744682ac8730bb7775d9684`.
+
+- `python -m pytest -q`: 79 passed (기존 69 + 신규 10). 임시 SQLite와 설정을 사용. BLS ICS 파싱·DST·휴일/취소, 실패 시 이전 일정 보존, 수동 일정 출처/확인/단위/미래 날짜/인증·수정 삭제, AI 요청 형식·응답 파서·근거 ID 및 숫자/URL 검사, 키 비노출, 규칙 리포트 저장/재사용/이력, 유료 호출 동의/실패/한도/사용량, 수집 중 판단 보류, 종목 개인 메모 외부 전송 제외를 검증.
+- 모든 JS `node --check`, `python -m compileall -q app` 통과.
+- `UI_VIEWPORT=desktop python -m tools.check_intelligence_ui`, `UI_VIEWPORT=mobile ...`: PC 1440×1100, 모바일 390×844 신규 기능 조작 검사 통과. 기간/종목 선택, 근거 검색, 저장/이력 열기, 일정 등록/수정/삭제, 관리자 키/한도 설정, 데모 외부 호출 차단 UI. 모바일 관리자 긴 select 문구로 인한 가로 넘침 발견 후 수정하고 재검사 통과.
+- `python -m tools.check_ui`: 기존 데스크톱 전체 UI 회귀 통과, 모바일 메인/국내 시세·수급/관리자/시장 압력 조작 검사 통과. 이후 모바일 기업가치/순위 등 전체 재검사는 실행 시간 제한으로 미완료. 기존 기능 pytest 회귀는 모두 통과.
+- 브라우저는 실제 HTML/CSS/JS 및 FastAPI TestClient 응답 브리지(전송/인증 모의) 사용. 실서버 TLS 및 운영 환경 미검증. BLS 실제 네트워크 접근 시 ConnectError; 파싱/캐시/오류는 모의 응답으로 검증. AI는 실제 인증키 및 요금 발생 없이 모의 응답/파서로 검사. 실제 모델 호환성, API 단위, Docker/PostgreSQL, GitHub CI, Render는 배포 전 별도 확인 필요.
+- AI 해석은 JSON/근거 ID/형식 검사만 하며 의미상 사실성·수익성 보장 없음. 수동 일정/실제값은 사용자 확인이며 공식 원문 일치 여부를 자동 검증하지 않음. 토큰/횟수는 비용 통제 보조값이며 실제 과금 상한 아님. BLS 외 일정과 발표 실제값은 수동 입력. 자동 유료 AI 호출 없음.
+
+---
+
 # Macro Invest 4.0 — 검증 기록
 
 검증일: 2026-11-27 KST. 3.0 원본 ZIP의 Git tree `50784e7df3f34511b1a300df6899f023ca1f0ce3`를 기준으로 작업.

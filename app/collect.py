@@ -70,6 +70,12 @@ def collect(reserved=False, full=True):
                     collect_market(cfg)
                 except Exception:
                     logging.getLogger(__name__).warning('Optional Korean market collection failed; macro data preserved')
+            if cfg.get('BLS_AUTO_REFRESH')=='1':
+                try:
+                    from .release_calendar import refresh_if_due
+                    refresh_if_due()
+                except Exception:
+                    logging.getLogger(__name__).warning('Optional BLS calendar refresh failed; prior calendar retained')
             state='ok' if counts['ok']==len(SERIES) else 'partial' if counts['ok'] else 'error'
             return {'state':state,**counts}
         except Exception:

@@ -24,6 +24,8 @@ from .kr_market import router as kr_market_router, market_state, MARKETS
 from .kr_insights import router as kr_insights_router
 from .kr_pressure import router as kr_pressure_router
 from .kr_value import router as kr_value_router
+from .release_calendar import router as calendar_router
+from .intelligence import router as intelligence_router, interrupt_ai
 from .middleware import BodyLimitMiddleware
 from .dashboard_data import build_dashboard, iso
 from .briefing import build_briefing, save_daily_snapshot
@@ -34,6 +36,7 @@ from typing import Literal
 async def lifespan(app):
     init()
     password()
+    interrupt_ai()
     with Session.begin() as db:
         db.execute(update(Run).where(Run.state=='running').values(state='interrupted'))
     if DEMO:
@@ -44,7 +47,7 @@ async def lifespan(app):
     stop.set()
     t.join(timeout=2)
 
-app=FastAPI(title='Macro Invest',version='4.4.0',lifespan=lifespan)
+app=FastAPI(title='Macro Invest',version='4.5.0',lifespan=lifespan)
 STATIC=Path(__file__).parent/'static'
 app.add_middleware(TrustedHostMiddleware,allowed_hosts=HOSTS, www_redirect=False)
 app.include_router(admin_router)
@@ -53,6 +56,8 @@ app.include_router(kr_market_router)
 app.include_router(kr_insights_router)
 app.include_router(kr_pressure_router)
 app.include_router(kr_value_router)
+app.include_router(calendar_router)
+app.include_router(intelligence_router)
 app.add_middleware(BodyLimitMiddleware, max_bytes=1_000_000)
 app.mount('/static',StaticFiles(directory=STATIC),name='static')
 

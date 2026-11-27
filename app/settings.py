@@ -8,9 +8,9 @@ from urllib.parse import parse_qsl, urlencode
 from cryptography.fernet import Fernet, InvalidToken
 from .db import DEMO
 
-KEYS=('FRED_API_KEY','ECOS_API_KEY','KOSIS_API_KEY','KIS_APP_KEY','KIS_APP_SECRET','DART_API_KEY')
+KEYS=('FRED_API_KEY','ECOS_API_KEY','KOSIS_API_KEY','KIS_APP_KEY','KIS_APP_SECRET','DART_API_KEY','OPENAI_API_KEY','GEMINI_API_KEY','ANTHROPIC_API_KEY')
 QUERIES=('KOSIS_LEADING_QUERY','KOSIS_COINCIDENT_QUERY')
-DEFAULTS={**dict.fromkeys(KEYS+QUERIES,''),'HISTORY_START':'1995-01-01','AUTO_COLLECT':'0','COLLECT_HOUR_KST':'8'}
+DEFAULTS={**dict.fromkeys(KEYS+QUERIES,''),'HISTORY_START':'1995-01-01','AUTO_COLLECT':'0','COLLECT_HOUR_KST':'8','AI_PROVIDER':'off','OPENAI_MODEL':'','GEMINI_MODEL':'','ANTHROPIC_MODEL':'','AI_DAILY_LIMIT':'3','AI_MAX_OUTPUT':'1200','BLS_AUTO_REFRESH':'0'}
 GUARD=threading.RLock()
 
 def directory():
@@ -84,8 +84,12 @@ def save_settings(updates):
             if k=='HISTORY_START':
                 d=date.fromisoformat(v)
                 if not date(1900,1,1)<=d<=date.today(): raise ValueError('조회 시작일 범위를 확인하세요.')
-            if k=='AUTO_COLLECT' and v not in ('0','1'): raise ValueError('자동수집 설정값 오류')
+            if k in ('AUTO_COLLECT','BLS_AUTO_REFRESH') and v not in ('0','1'): raise ValueError('자동수집 설정값 오류')
             if k=='COLLECT_HOUR_KST' and (not v.isdigit() or not 0<=int(v)<=23): raise ValueError('수집 시각은 0~23시')
+            if k=='AI_PROVIDER' and v not in ('off','openai','gemini','anthropic'): raise ValueError('AI 제공처 설정 오류')
+            if k in ('OPENAI_MODEL','GEMINI_MODEL','ANTHROPIC_MODEL') and v and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}',v): raise ValueError('모델 ID 형식 오류')
+            if k=='AI_DAILY_LIMIT' and (not v.isascii() or not v.isdigit() or not 1<=int(v)<=20): raise ValueError('하루 1~20회')
+            if k=='AI_MAX_OUTPUT' and (not v.isascii() or not v.isdigit() or not 256<=int(v)<=3000): raise ValueError('출력 토큰 256~3000')
             stored[k]=v
         private_write(path,cipher().encrypt(json.dumps(stored,ensure_ascii=False).encode()))
         return load_settings()
