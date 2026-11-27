@@ -68,3 +68,114 @@ def test_connection_with_mock(config,monkeypatch):
     r=admin.test_connection('FRED')
     assert r['ok'] and r['results'][0]['value']==320
     assert 'mock-registered-key' not in str(r)
+
+
+def test_ecos_connection_uses_saved_key_and_reports_provider_errors(config, monkeypatch):
+    from app.catalog import BY_ID
+    from app.db import init
+
+    init()
+    monkeypatch.setattr(admin, 'DEMO', False)
+    issued_key = 'mock-ecos-key'
+    expected_items = {(BY_ID[sid].code, BY_ID[sid].item) for sid in admin.SAMPLES['ECOS']}
+    requested_items = set()
+    response_code = None
+
+    def handler(request):
+        assert request.url.host == 'ecos.bok.or.kr'
+        _, _, service, key, *_ = request.url.path.split('/')
+        assert service == 'StatisticSearch' and key == issued_key
+        table, freq, start, end, item = request.url.path.split('/')[-5:]
+        assert freq == 'D' and len(start) == len(end) == 8
+        requested_items.add((table, item))
+        if response_code:
+            return httpx.Response(200, json={'RESULT': {'CODE': response_code, 'MESSAGE': issued_key}})
+        return httpx.Response(200, json={'StatisticSearch': {
+            'list_total_count': 1,
+            'row': [{'STAT_CODE': table, 'ITEM_CODE1': item, 'TIME': end, 'DATA_VALUE': '3.0'}],
+        }})
+
+    client_class = httpx.Client
+    client = TestClient(app, headers=HEADERS)
+    client.auth = AUTH
+    monkeypatch.setattr(admin.httpx, 'Client', lambda **kwargs: client_class(
+        transport=httpx.MockTransport(handler), **kwargs,
+    ))
+
+    with client:
+        path = '/api/admin/test/ECOS'
+        missing = client.post(path).json()
+        assert len(missing['results']) == 6
+        assert all('저장된 ECOS API 키가 없습니다' in result['message'] for result in missing['results'])
+
+        sample = client.put('/api/admin/settings', json={'values': {'ECOS_API_KEY': 'sample'}})
+        assert sample.status_code == 200
+        sample_result = client.post(path).json()
+        assert all('공개 sample 키' in result['message'] for result in sample_result['results'])
+        assert not requested_items
+
+        saved = client.put('/api/admin/settings', json={'values': {'ECOS_API_KEY': issued_key}})
+        assert saved.status_code == 200 and saved.json()['configured']['ECOS_API_KEY']
+        assert issued_key not in saved.text
+        success = client.post(path)
+        assert success.json()['ok']
+        assert requested_items == expected_items
+
+        for response_code in ('INFO-100', 'INFO-200'):
+            error = client.post(path)
+            assert not error.json()['ok']
+            assert all(response_code in result['message'] for result in error.json()['results'])
+            assert issued_key not in error.text
+
+
+def test_kosis_connection_explains_failures_without_leaking_key(config, monkeypatch):
+    monkeypatch.setattr(admin, 'DEMO', False)
+    key = 'mock-kosis-key'
+    query = 'orgId=101&tblId=DT_1C8015&itmId=T1&objL1='
+    save_settings({
+        'KOSIS_API_KEY': key,
+        'KOSIS_LEADING_QUERY': query + 'A03',
+        'KOSIS_COINCIDENT_QUERY': query + 'B03',
+    })
+    requested_codes = set()
+
+    def handler(request):
+        assert request.url.host == 'kosis.kr'
+        assert request.url.params['apiKey'] == key
+        assert request.url.params['prdSe'] == 'M'
+        code = request.url.params['objL1']
+        requested_codes.add(code)
+        return response(request)
+
+    client_class = httpx.Client
+    monkeypatch.setattr(admin.httpx, 'Client', lambda **kwargs: client_class(
+        transport=httpx.MockTransport(handler), **kwargs,
+    ))
+    monkeypatch.setattr(admin.p.time, 'sleep', lambda _: None)
+
+    response = lambda request: httpx.Response(200, json=[{
+        'C1': request.url.params['objL1'], 'ITM_ID': 'T1',
+        'PRD_DE': request.url.params['endPrdDe'], 'DT': '100.1',
+    }])
+    assert admin.test_connection('KOSIS')['ok']
+    assert requested_codes == {'A03', 'B03'}
+
+    def timeout(request):
+        raise httpx.ConnectTimeout(str(request.url), request=request)
+
+    cases = [
+        (lambda _: httpx.Response(200, json={'err': '11', 'errMsg': key}), 'KOSIS 오류 11'),
+        (lambda _: httpx.Response(200, json={'errCode': 21, 'errMsg': key}), 'KOSIS 오류 21'),
+        (lambda _: httpx.Response(200, json={'err': '30', 'errMsg': key}), 'KOSIS 오류 30'),
+        (lambda _: httpx.Response(200, json={'err': '40', 'errMsg': key}), 'KOSIS 오류 40'),
+        (lambda _: httpx.Response(200, json={'err': key}), '인식할 수 없는 오류'),
+        (lambda _: httpx.Response(503, text=key), 'HTTP 503'),
+        (lambda _: httpx.Response(200, text=key), 'JSON 통계 응답'),
+        (timeout, '앱 서버에서 KOSIS에 연결하지 못했습니다'),
+    ]
+    for response, expected in cases:
+        result = admin.test_connection('KOSIS')
+        assert not result['ok']
+        assert len(result['results']) == 2
+        assert all(expected in row['message'] for row in result['results'])
+        assert key not in str(result)

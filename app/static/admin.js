@@ -6,7 +6,15 @@ const stateNames={ok:'정상',error:'실패',not_configured:'설정 필요',pend
 const dt=x=>x?new Date(x).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',hour12:false}):'—';
 async function api(path,opts={}){let r=await fetch(path,{...opts,credentials:'same-origin',cache:'no-store',headers:{'X-Macro-Admin':'1',...(opts.body?{'Content-Type':'application/json'}:{}),...opts.headers}});if(!r.ok){let j;try{j=await r.json()}catch{}throw Error(typeof j?.detail==='string'?j.detail:`HTTP ${r.status}`)}return r.json()}
 function msg(s,error=false){$('adminBanner').textContent=s;$('adminBanner').classList.toggle('error-banner',error)}
-function renderSettings(){for(const k of keys){let flag=$('flag-'+k.split('_')[0]);flag.textContent=settings.configured[k]?'키 등록됨':'미등록';flag.className='status '+(settings.configured[k]?'ok':'stale');$(k).value='';$('clear-'+k).checked=false;}for(const k of [...queries,...schedules])$(k).value=settings.values[k];renderKrKeys();}
+function renderKey(key) {
+    const flag = $('flag-' + key.split('_')[0]);
+    const configured = settings.configured[key];
+    flag.textContent = configured ? '키 등록됨' : '미등록';
+    flag.className = 'status ' + (configured ? 'ok' : 'stale');
+    $(key).value = '';
+    $('clear-' + key).checked = false;
+}
+function renderSettings(){keys.forEach(renderKey);for(const k of [...queries,...schedules])$(k).value=settings.values[k];renderKrKeys();}
 function renderSetup(){if(!settings||!status)return;const allKeys=keys.every(k=>settings.configured[k]),allQueries=queries.every(k=>Boolean(settings.values[k])),normal=status.series.filter(x=>x.state==='ok').length,failed=status.series.filter(x=>x.state==='error').length;const steps=[['API 키 등록',settings.demo?'데모에서는 필요 없음':allKeys?'세 제공처 키 등록됨':'FRED·ECOS·KOSIS 키 등록 및 저장','apiSetup',settings.demo||allKeys],['KOSIS 통계표 선택',allQueries?'선행·동행 쿼리 등록됨':'전국 월간 순환변동치 한 항목씩 선택','apiSetup',allQueries],['연결 검사','제공처별 연결 검사 버튼을 눌러 표본 응답 확인 (자동 완료 판정 없음)','apiSetup',false],['전체 데이터 수집',settings.demo?'가상 자료 38개 지원':`${normal}/${status.series.length} 정상 · 실패 ${failed}개`, 'scheduleSetup',!settings.demo&&normal===status.series.length],['자동 수집 일정',settings.values.AUTO_COLLECT==='1'?`매일 ${settings.values.COLLECT_HOUR_KST.padStart(2,'0')}:00 KST`:'자동 수집 OFF · 필요 시 활성화','scheduleSetup',!settings.demo&&settings.values.AUTO_COLLECT==='1']];$('setupSteps').innerHTML=steps.map(([label,desc,anchor,done],i)=>`<div class="setup-step"><span class="setup-number ${done?'complete':''}">${done?'✓':i+1}</span><div><strong>${esc(label)}</strong><p>${esc(desc)}</p></div><a href="#${anchor}">이동</a></div>`).join('')}
 function renderStatus(){if(!status)return;const rows=status.series,filter=$('statusFilter').value;let normal=rows.filter(x=>['ok','demo'].includes(x.state)).length;
  const configured=settings?1+keys.filter(k=>settings.configured[k]).length:0;
@@ -19,7 +27,46 @@ async function save(values){working=true;updateButtons();try{try{settings=await 
 $('settingsForm').onsubmit=e=>{e.preventDefault();let values={};for(const k of keys){if($('clear-'+k).checked)values[k]='';else if($(k).value.trim())values[k]=$(k).value.trim()}for(const k of queries)values[k]=$(k).value;save(values)};
 $('scheduleForm').onsubmit=e=>{e.preventDefault();save(Object.fromEntries(schedules.map(k=>[k,$(k).value])))};
 for(let h=0;h<24;h++)$('COLLECT_HOUR_KST').add(new Option(String(h).padStart(2,'0')+':00',String(h)));
-document.querySelectorAll('[data-test]').forEach(b=>b.onclick=async()=>{const provider=b.dataset.test,el=$('test-'+provider);working=true;updateButtons();el.textContent='저장된 설정으로 표본 조회 중…';try{const r=await api('/api/admin/test/'+provider,{method:'POST'});el.innerHTML=r.results.map(x=>`<div class="${x.state==='ok'?'up':'down'}">${esc(x.series)} · ${x.state==='ok'?`응답 성공 (${x.count}건, ${esc(x.period)})`:esc(x.message)}</div>`).join('')+`<small>${esc(r.note)}</small>`}catch(e){el.textContent=e.message}finally{working=false;updateButtons()}});
+document.querySelectorAll('[data-test]').forEach(button => {
+    button.onclick = async () => {
+        const provider = button.dataset.test;
+        const result = $('test-' + provider);
+        const key = 'ECOS_API_KEY';
+        if (provider === 'ECOS' && $('clear-' + key).checked) {
+            result.textContent = '키를 제거하려면 설정 저장을 누르세요. 연결 검사만 하려면 키 제거 선택을 해제하세요.';
+            return;
+        }
+
+        working = true;
+        updateButtons();
+        try {
+            const entered = provider === 'ECOS' ? $(key).value.trim() : '';
+            if (entered) {
+                result.textContent = 'ECOS 키 저장 중…';
+                settings = await api('/api/admin/settings', {
+                    method: 'PUT',
+                    body: JSON.stringify({values: {[key]: entered}}),
+                });
+                renderKey(key);
+                msg('ECOS 키를 저장했습니다.');
+                await refresh();
+            }
+            result.textContent = '저장된 설정으로 표본 조회 중…';
+            const response = await api('/api/admin/test/' + provider, {method: 'POST'});
+            result.innerHTML = response.results.map(item => {
+                const detail = item.state === 'ok'
+                    ? `응답 성공 (${item.count}건, ${item.period})`
+                    : item.message;
+                return `<div class="${item.state === 'ok' ? 'up' : 'down'}">${esc(item.series)} · ${esc(detail)}</div>`;
+            }).join('') + `<small>${esc(response.note)}</small>`;
+        } catch (error) {
+            result.textContent = error.message;
+        } finally {
+            working = false;
+            updateButtons();
+        }
+    };
+});
 $('runCollect').onclick=async()=>{working=true;updateButtons();try{let r=await api('/api/collect',{method:'POST'});msg(r.state==='busy'?'이미 수집 중입니다.':'수집을 시작했습니다. 아래 상태표에서 확인하세요.');await new Promise(r=>setTimeout(r,700));await refresh()}catch(e){msg(e.message,true)}finally{working=false;updateButtons()}};
 document.querySelectorAll('[data-reset]').forEach(b=>b.onclick=async()=>{if(!confirm('선택한 KOSIS 지표의 전체 관측값과 수정 이력이 삭제됩니다. 먼저 CSV로 백업하세요. 계속하시겠습니까?'))return;working=true;updateButtons();try{await api('/api/admin/reset-kosis/'+b.dataset.reset+'?confirm=true',{method:'POST'});msg('해당 지표 이력을 초기화했습니다. 전체 수집을 실행하세요.');await refresh()}catch(e){msg(e.message,true)}finally{working=false;updateButtons()}});
 $('refreshStatus').onclick=refresh;$('statusFilter').onchange=renderStatus;
