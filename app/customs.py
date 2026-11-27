@@ -55,8 +55,12 @@ def parse_xml(body,code,start,end):
         out[d]=value
     if not out:
         raise DataError('관세청 유효 월별 수출자료 없음')
-    if any(month_before(b,1)!=a for a,b in zip(sorted(out),sorted(out)[1:])):
-        raise DataError('관세청 월별 이력 누락')
+    expected=set()
+    cursor=start
+    while cursor<=end:
+        expected.add(cursor);cursor=month_before(cursor,-1)
+    if set(out)!=expected:
+        raise DataError('관세청 조회 기간 월별 이력 누락')
     return out
 
 def fetch(client,s,start,end,cfg=None):
@@ -66,7 +70,8 @@ def fetch(client,s,start,end,cfg=None):
     if s.code not in CODES: raise DataError('지원하지 않는 HS 코드')
     # Previous completed month only, at most 10 years to bound first/full fetch.
     last=month_before(end,1)
-    cursor=max(start.replace(day=1),month_before(last,119))
+    first=start.replace(day=1) if start.day==1 else month_before(start,-1)
+    cursor=max(first,month_before(last,119))
     if cursor>last:raise DataError('완료된 월간 조회기간 없음')
     out={}
     while cursor<=last:

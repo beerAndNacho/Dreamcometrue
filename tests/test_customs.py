@@ -39,3 +39,10 @@ def test_key_not_returned():
         assert 'custom-secret' not in str(public_settings())
         with pytest.raises(ValueError):normalized_key('https://bad.test/?key=secret')
     finally:save_settings({'CUSTOMS_API_KEY':old})
+
+
+def test_customs_rejects_missing_boundary_months():
+    a,b=date(2026,9,1),date(2026,10,1)
+    for rows in [[('2026.09','8542','2000000')],[('2026.10','8542','3000000')]]:
+        with pytest.raises(DataError,match='누락'):
+            parse_xml(xml(rows),'8542',a,b)

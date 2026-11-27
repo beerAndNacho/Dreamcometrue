@@ -32,7 +32,8 @@ def test_aligned_diagnostics_and_missing():
     vals={'fed_assets':[(d,7000000.)],'tga':[(d,800000.)],
           'rrp':[(d,20.),(d+timedelta(days=1),99.)],
           'sofr':[(d,4.3)],'iorb':[(d,4.2),(asof,9.)]}
-    a,b=diagnostics(vals,asof)
+    by_id={x['id']:x for x in diagnostics(vals,asof)}
+    a,b=by_id['net_liquidity_proxy'],by_id['sofr_iorb_gap']
     assert a['value']==6180 and a['period']==str(d) and len(a['sources'])==3
     assert b['value']==pytest.approx(.1)
     vals['tga']=[(d-timedelta(days=7),800000.)]
@@ -64,3 +65,21 @@ def test_oecd_country_expansion_and_report_context():
         data=json.loads(report['prompt'].split('=== 관측자료 JSON ===\n',1)[1])
         assert any(e['id']=='cpi' and e.get('history_context') for e in data['evidence'])
         assert any(e['id']=='sox' for e in data['evidence'])
+
+
+def test_sector_and_valuation_diagnostics():
+    d=date(2026,7,1);asof=date(2026,9,2)
+    data={'electronics_inventory':[(d,120.)],'electronics_shipments':[(d,40.)],
+          'corporate_profit':[(d,3000.)],'nominal_gdp':[(d,30000.)],
+          'nonfinancial_equity':[(d,60_000_000.)]}
+    get=lambda:{x['id']:x for x in diagnostics(data,asof)}
+    assert get()['electronics_inventory_shipments']['value']==3.
+    assert get()['profit_gdp']['value']==10.
+    assert get()['equity_gdp_proxy']['value']==200.
+    data['nominal_gdp']=[(d,0.)]
+    assert get()['profit_gdp']['value'] is None and get()['equity_gdp_proxy']['value'] is None
+    data['electronics_shipments']=[(date(2026,8,1),40.)]
+    assert get()['electronics_inventory_shipments']['value'] is None
+    data['electronics_shipments']=[(d,40.)]
+    data['electronics_inventory']=[(d,-1.)]
+    assert get()['electronics_inventory_shipments']['value'] is None

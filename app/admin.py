@@ -77,7 +77,7 @@ def put_settings(req:SettingsUpdate):
         return public_settings()
     finally: LOCK.release()
 
-SAMPLES={'FRED':['cpi'],'ECOS':['kr_rate','kr10y','kr3y','usdkrw','kospi','kosdaq'],'OECD':['cli_us','cli_kr','cli_uk'],'KOSIS':['kr_leading','kr_coincident'],'CUSTOMS':['kr_ic_exports','kr_memory_exports']}
+SAMPLES={'FRED':['cpi'],'ECOS':['kr_rate','kr10y','kr3y','usdkrw','kospi','kosdaq','kr_cpi'],'OECD':['cli_us','cli_kr','cli_uk'],'KOSIS':['kr_leading','kr_coincident'],'CUSTOMS':['kr_ic_exports','kr_memory_exports']}
 
 @router.post('/api/admin/test/{provider}',dependencies=[Depends(require_write)])
 def test_connection(provider:str):
