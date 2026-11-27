@@ -58,3 +58,11 @@
 - `python -m tools.check_ui`: PC 1440px, 모바일 390px 전체 4.0/4.1/4.2 Chromium 브라우저 회귀 검사 통과. 기존 화면/관리자 키 저장/포트폴리오/차트/종목 편집, 신규 장중 순위 필터, 기간 비교, 업종 태그, 히트맵, 동반 순매수 필터, 가로 넘침 검사. 실제 HTML/CSS/JS 및 FastAPI TestClient 응답 브리지 방식으로 수행(실제 TCP 서버와 HTTP 인증 창은 미검증).
 - Python compileall 및 기존·신규 JavaScript 문법 검사 통과.
 - KIS 실전 API 키/실 응답 미확보로 외부 조회는 MockTransport 또는 데모만 검사했습니다. 장중 순위 응답의 집계일/시각과 실제 단위 및 집계 범위는 실전 HTS와 별도 확인 필요. 공식 거래일 완전성/휴장일 확인, Render/PostgreSQL/Docker 실운영, 원격 GitHub Actions 실행 결과는 이 검증에 포함하지 않았습니다. 기존 개인용 단일 worker·HTTPS 정책 유지.
+
+
+## 4.3 검증 기록
+- 기반: 4.2 ZIP, Git tree `1da017d47c31360edce42f498bf7f98c4fe862b9`.
+- `python -m pytest -q`: **60 passed** (기존 53 + 신규 7). 모의 KIS TR ID/파라미터/날짜 제한, 숫자·공매도 비중 및 잔고 집계, 동일 최신 관측일 비교, CSV 입력/중복/미래값/범위, 인증·Origin/데모 차단, 오류 이력 보존 및 호출 제한.
+- Chromium 1440×1100 및 390×844 신규 화면 조작 검사 통과: 시장/종목/기간 선택, 차트/요약, 데모 제한, 코스닥 비교 보류, 가로 넘침 및 페이지 JS 오류 확인. 기존 TestClient fetch 브리지로 실제 HTML/CSS/JS와 API 응답을 사용했습니다. 최초 브라우저 검사에서 정수 Literal 쿼리 검증 문제를 발견하여 수정하고 실제 URL 쿼리 테스트를 추가했습니다.
+- 기존 전체 브라우저 재실행은 환경 실행 시간 제한으로 종료되어 최종 전체 UI 통과를 주장하지 않습니다. 기존 53개 자동화 회귀 검사는 통과했습니다.
+- 실제 KIS 키 및 외부 응답, 실제 KRX CSV와의 일치 여부, 프로그램매매 원자료 수량 스케일, 거래일 완전성, PostgreSQL/Docker/Render 실운영, 브라우저 실 TCP/HTTPS 및 CI 결과는 미검증. 선물/순보유잔고 자동 API 연결은 미구현입니다.

@@ -114,6 +114,24 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#compareSort').select_option('institution');page.locator('#bothBuy').check();page.locator('#bothBuy').uncheck()
             page.locator('#comparePanel').screenshot(path=str(out/f'kr-compare-{label}.png'))
             assert not errors,errors
+            page.close()
+            page,errors=page_for('/kr-pressure')
+            page.wait_for_function("document.querySelector('#programData .metric') && !document.querySelector('#pressureStock').disabled",timeout=12000)
+            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),(label,'pressure overflow')
+            assert '가상' in page.locator('#pressureStatus').inner_text() and page.locator('#pressureRefresh').is_disabled()
+            page.locator('#pressureStock').select_option('005930')
+            page.wait_for_function("document.querySelector('#loanData .metric') && !document.querySelector('#pressureStock').disabled",timeout=12000)
+            assert page.locator('#shortData svg').count()==1
+            assert page.locator('#stockData').is_visible()
+            page.locator('#pressurePeriod').select_option('5')
+            page.wait_for_function("document.querySelector('#programData').textContent.includes('최근 5개 관측일 요약') && !document.querySelector('#pressureMarket').disabled",timeout=12000)
+            page.screenshot(path=str(out/f'kr-pressure-{label}.png'))
+            page.locator('#stockPanel').screenshot(path=str(out/f'kr-short-loan-{label}.png'))
+            page.locator('#pressureMarket').select_option('KOSDAQ')
+            page.wait_for_function("document.querySelector('#spotFutures').textContent.includes('코스닥 현물과 직접 비교하지') && !document.querySelector('#pressureStock').disabled",timeout=12000)
+            assert not errors,errors
+            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),(label,'pressure stock overflow')
+            print(label+': market pressure, stock selection, period, comparison, demo safeguards OK')
             for code in ['005930','000660','000270']:
                 assert client.delete('/api/kr-market/watch/'+code,auth=auth,headers={'X-Macro-Admin':'1'}).status_code==200
             print(label+': intraday ranking, aligned comparison, sector tags, filters and responsive UI OK')

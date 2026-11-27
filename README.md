@@ -1,4 +1,4 @@
-# Macro Invest 4.2 — Orbital Observatory / 글로벌 투자 관측소
+# Macro Invest 4.3 — Orbital Observatory / 글로벌 투자 관측소
 
 개인용 로컬 또는 HTTPS 호스팅 웹 서비스. FastAPI + SQLAlchemy + PostgreSQL(Docker) 또는 SQLite(간편 실행) + 순수 HTML/CSS/JS. 38개 지표 수집 및 분석, 우주 관측소 테마, 관리자 콘솔, 지표 품질 확인, 리포트 다운로드, 서버 포트폴리오 저장을 지원합니다. 거래 주문은 실행하지 않습니다.
 
@@ -227,3 +227,22 @@ GitHub/Render 배포용 설정이 추가되었습니다. 기존 로컬 실행은
 - 외국인·기관 모두 누적 순매수인 종목 필터, 투자자별 정렬, 업종 태그를 제공합니다. **제외 종목 및 업종 태그 설정**을 열어 분류를 선택하면 즉시 비교하며 해당 브라우저에 저장합니다. 다른 PC/휴대폰에는 자동 동기화되지 않습니다. 업종별 히트맵은 직접 분류한 관심종목 표본 합계이며 KRX 공식 업종 전체 수급이나 시장 전체 순위가 아닙니다. 누락 종목 수 및 포함/등록 수를 확인하세요. 동반 순매수 필터는 종목 표에만 적용됩니다. 업종 히트맵은 포함 가능한 관심종목 전체를 표시합니다.
 - 신규 파일 `app/kr_insights.py`, `app/static/kr-insights.html/js/css`, `tests/test_kr_insights.py`. API `POST /api/kr-insights/ranking`, `POST /api/kr-insights/watch`는 기존 관리자 인증/Origin/헤더 검증을 적용합니다. 기존 DB 테이블과 설정 포맷은 변경하지 않습니다. 추가된 메뉴 외에 기존 38개 지표와 수급 모델, 예약 수집, 포트폴리오를 유지합니다.
 - 한계 및 후속 개발: 시장 전체 **확정** 순매수 종목 순위 및 공식 업종 전체 집계, 휴장일 자동 판별, 선물/프로그램매매, 공매도/대차잔고, 배당 캘린더, 예상 EPS 자동 산출, AI 뉴스/알림은 이번 버전에 구현하지 않았습니다. 공급처 계약 및 데이터 이용조건을 확인한 후 연결해야 합니다.
+
+
+## 14. 4.3 시장 압력 관측소
+
+메뉴 **시장 압력 관측소** (`/kr-pressure`)에서 시장과 관심종목, 1/5/20/60개 저장 관측일을 선택합니다. 관리자 인증이 필요하며, **KIS 수동 수집**은 기존 실전 키를 사용합니다. 새로운 키나 DB 테이블은 필요하지 않습니다. 기존 거시경제 위험도 및 자동 수집 일정은 변경하지 않습니다.
+
+### KIS 공식 API 연동 (실계정 검증 필요)
+- 시장별 프로그램매매 종합현황 일별: `FHPPG04600001`, `comp-program-trade-daily`. KRX(J), KOSPI K/KOSDAQ Q. 차익 `arbt_smtm_ntby_qty`, 비차익 `nabt_smtn_ntby_qty` 원자료 수량과 합계를 표시합니다. 공급처 금액·수량 스케일을 실전 HTS에서 대조하기 전에는 금액 환산을 하지 않습니다. 공식 예제: https://github.com/koreainvestment/open-trading-api/tree/main/examples_llm/domestic_stock/comp_program_trade_daily
+- 선택 관심종목 공매도 거래 일별: `FHPST04830000`, `daily-short-sale`, KRX(J). 공매도 체결 수량과 같은 행의 전체 거래량을 이용한 비중을 표시합니다. 기간 비중은 공매도 수량 합계/거래량 합계×100입니다. 이는 공매도 순보유잔고와 다릅니다. 공식 예제: https://github.com/koreainvestment/open-trading-api/tree/main/examples_llm/domestic_stock/daily_short_sale
+- 선택 관심종목 대차거래 일별: `HHPST074500C0`, `daily-loan-trans`, 조회구분 3(종목). 신규/상환 주수와 잔고 주수 표시. 신규/상환은 기간 합계, 잔고는 마지막 값 및 기간 처음 대비 증감입니다. 잔고 자체를 합산하지 않습니다. 대차잔고 전부가 공매도로 연결되는 것은 아닙니다. 공식 예제: https://github.com/koreainvestment/open-trading-api/tree/main/examples_llm/domestic_stock/daily_loan_trans
+- 오늘 제외, 최대 약 95일 요청 범위, 공급처 첫 배치만 저장. 최대 400개 관측값 보존, 차트 최대 60개 표시. 휴장일 자동 판별/완전한 거래일 수집 보장 없음. 7일 초과 또는 오류 시 기간 요약과 비교 보류. 수집 실패 시 이전 이력 유지. 기존 토큰 재사용, 단일 잠금, 최소 5초 수동 호출 간격, 고정 API 호스트 및 시간 제한 적용.
+
+### KRX 수동 CSV 등록
+자동 수집 규격을 확인하지 못한 두 지표는 사용자 확인을 거친 CSV만 등록합니다. [KRX Data Marketplace](https://data.krx.co.kr/contents/MDC/MAIN/main/index.cmd)에서 원자료를 확인한 뒤 프로그램 표준 헤더(빈 템플릿 다운로드 가능)로 변환하세요. KRX 원본 다운로드 CSV를 자동 인식하지 않습니다. 출처/상품 범위 및 단위는 서버에서 인증하지 못하며 사용자 등록 자료로 표시합니다.
+- 코스피200 선물 전체 월물 투자자별 일별 순매수 계약: `date,foreign_contracts,institution_contracts,individual_contracts`. 현물은 코스피 전체 순매수 억원입니다. 동일 최신 관측일이고 양쪽 신선할 때 방향만 비교하며, 계약 수와 금액을 합산하거나 헤지/보유 포지션을 추정하지 않습니다. 코스닥과 선물 직접 비교는 보류합니다.
+- 선택 관심종목 공매도 순보유잔고: `date,balance_qty,balance_pct` (잔고 주수, 비율 %). 공시 지연에 유의하세요. 자동 API 및 실제 잔고 실시간 조회가 아닙니다.
+- YYYY-MM-DD 완료 평일 날짜, 정확한 헤더, 중복 없음, 수치 범위와 400행/200KB 상한 검증. 동일 날짜는 사용자 확인 후 교체됩니다. 데모는 합성값만 사용하며 외부 호출 및 CSV 등록을 차단합니다.
+
+신규 모듈 `app/kr_pressure.py`, `app/static/kr-pressure.html/js/css`, `tests/test_kr_pressure.py`. `GET /api/kr-pressure`, `POST /api/kr-pressure/refresh`, `POST /api/kr-pressure/import`에 기존 인증/쓰기 Origin 및 헤더 검사를 적용합니다. 신규 지표는 기존 미국 위험 점수 및 모델 배분에 반영하지 않습니다. 프로그램매매와 투자자별 수급은 중복될 수 있어 합산하지 않습니다. 실 KIS API 및 실제 CSV 원자료는 배포 후 확인해야 합니다.
