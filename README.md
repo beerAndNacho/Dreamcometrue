@@ -1,4 +1,4 @@
-# Macro Invest 4.0 — Orbital Observatory / 글로벌 투자 관측소
+# Macro Invest 4.1 — Orbital Observatory / 글로벌 투자 관측소
 
 개인용 로컬 또는 HTTPS 호스팅 웹 서비스. FastAPI + SQLAlchemy + PostgreSQL(Docker) 또는 SQLite(간편 실행) + 순수 HTML/CSS/JS. 38개 지표 수집 및 분석, 우주 관측소 테마, 관리자 콘솔, 지표 품질 확인, 리포트 다운로드, 서버 포트폴리오 저장을 지원합니다. 거래 주문은 실행하지 않습니다.
 
@@ -191,3 +191,27 @@ GitHub/Render 배포용 설정이 추가되었습니다. 기존 로컬 실행은
 - 새 API: `GET /api/guide`, `GET /api/guide/{sid}`, `POST /api/scenario`. 기존 API 및 CSV/TXT 형식과 포트폴리오 저장 구조는 보존하고 대시보드 JSON에 비교값·브리핑 필드를 추가했습니다. TXT 리포트 뒤에 브리핑과 변화 내역이 추가됩니다.
 - 새 파일: `app/guide.py`(지표 설명), `app/dashboard_data.py`(공통 대시보드 계산), `app/briefing.py`(스냅샷·규칙 설명), `app/static/orbital-v4.js`와 `orbital-v4.css`(UI), `tests/test_v4.py`(회귀 테스트).
 - 미구현: 실시간 개별주가·예상 EPS·SOX/FTSE100·기관 수급 자동 연동, 자동 경제 캘린더 및 예상치, AI API, 푸시 알림, 자동 백업/복원, 최초 발표값 백테스트. 앱 설치(PWA)와 관리자 모델 편집은 인증·캐시·전략 버전 관리 설계 후 추가할 항목입니다. 현재 ChatGPT 아침 리포트 예약과 프로그램은 별개입니다.
+
+
+## 12. 4.1 국내 증시 관측소 (선택형 데이터 연결)
+
+대시보드의 **국내 증시 · 수급** 또는 `/kr-market`을 열면 코스피·코스닥 외국인/기관/개인 순매수, 일별/누적 그래프, 최근 5·20·60개 유효 관측일 합계, 외국인 연속 순매수/순매도와 기금·증권·투신 세부 수급을 볼 수 있습니다. 관측일과 상태를 반드시 확인하세요. 기존 38개 경제지표, 위험 점수 및 모델 비중은 변경하지 않습니다. 메인 대시보드와 TXT 리포트에도 수급 요약을 표시합니다.
+
+### 설정 순서
+
+1. [KIS Developers](https://apiportal.koreainvestment.com/)에서 본인 계정의 실전용 OpenAPI App Key 및 App Secret을 준비합니다. 계좌·주문 API는 호출하지 않습니다. 실제 키를 GitHub에 올리지 마세요.
+2. 관리자 `/admin` → 국내 증시 · 기업 실적 API → KIS 키 쌍 입력. [OpenDART](https://opendart.fss.or.kr/) 키는 기업 실적이 필요한 경우에만 입력합니다. 저장합니다. 기존 관리자 암호화 설정과 동일한 방식으로 보관하며 브라우저에 다시 반환하지 않습니다.
+3. `/kr-market` → 시장 수급 수집을 실행합니다. 결과 및 원자료 관측일을 확인합니다. 첫 연결에서는 두 시장의 대표 지수와 순매수 단위를 [KRX 투자자별 거래실적](https://data.krx.co.kr/contents/MDC/MDI/outerLoader/index.cmd?screenId=MDCSTAT022) 및 증권사 HTS와 비교하세요. KRX/NXT 집계 범위 차이와 제공처 수정 가능성이 있습니다.
+4. 관심종목에 6자리 종목코드와 표시명(직접 입력)을 등록합니다. 최대 20종목, 서버 DB에 보존됩니다. 종목별 갱신으로 종가 일봉 및 수급을 조회합니다. `상세`에서 차트와 동일 날짜의 수급, `편집`으로 이름/기업코드를 변경합니다. 삭제는 관심 목록에서만 제외하고 관측 이력은 유지합니다.
+5. 기업 실적에서는 종목코드, 사업연도, 보고서 및 연결/별도를 선택합니다. DART 고유번호 공란이면 공식 `corpCode.xml` ZIP 목록에서 종목코드를 대조해 자동 검색합니다. 고유번호와 종목코드 일치 여부를 `company.json`에서 재확인합니다. `fnlttSinglAcntAll.json`의 표준 KRW 손익계산서 계정에서 실제 매출, 영업이익, 순이익, 기본 EPS, 전년 동기 증가율(전기 양수일 때), 영업이익률을 계산합니다. 분기/반기 보고서의 `thstrm_amount`는 해당 3개월, 사업보고서는 연간 금액입니다. 누적/예상 EPS/TTM과 구분합니다. 중복 충돌·계정 미확인·전기 적자 등은 공란 처리합니다. 재무정보는 사용자가 조회하는 방식이며 일괄 예약 수집은 아직 없습니다.
+6. 자동 수집을 활성화하면 기존 매크로 수집 뒤 KIS 시장 및 관심종목 데이터도 갱신합니다. 키 미등록 시 생략하며 KIS 오류는 기존 매크로 결과를 변경하지 않습니다. 화면의 시장 수급 수집은 두 시장만, 종목 갱신은 해당 종목만 실행합니다. 기존 단일 작업 잠금을 이용합니다.
+
+### API와 수집 정책
+
+- KIS 시장 수급: `FHPTJ04040000`, `/uapi/domestic-stock/v1/quotations/inquire-investor-daily-by-market`, 공식 샘플 https://github.com/koreainvestment/open-trading-api/tree/main/examples_llm/domestic_stock/inquire_investor_daily_by_market . 코스피 `0001/KSP`, 코스닥 `1001/KSQ`를 사용합니다. `*_ntby_tr_pbmn`은 백만원 기준으로 해석하여 100으로 나눈 억원 값을 표시합니다. **실제 키로 시장 코드와 단위 및 집계 범위의 대조 확인이 필요합니다.**
+- KIS 종가 `FHKST03010100`, `inquire-daily-itemchartprice`(KRX/J, 원주가). 종목 수급 `FHPTJ04160001`, `investor-trade-by-stock-daily`(KRX/J). 공식 샘플 https://github.com/koreainvestment/open-trading-api/tree/main/examples_llm/domestic_stock/ . 원주가 등락률은 분할/배당 영향 가능. 실시간 시세 아님.
+- 오늘(한국 시간) 이전 날짜만 저장하고 주말 날짜를 제외합니다. 한국 공휴일 캘린더 완전성은 검증하지 않았으며 실제 API에서 제공한 관측일만 사용합니다. 초기 시장별 최대 4페이지 역방향 조회(60개 확보 목표), 이후 한 번씩 갱신하며 최대 400개 관측값 저장. 종목은 API 첫 배치만 저장하므로 기간이 부족할 수 있습니다. 날짜 누락·필수값 누락·중복 충돌을 검사합니다. 10일 초과 간격이나 n개 부족 시 누적값을 보류합니다. 이 검사는 공식 거래일 달력 검증이 아니므로 5/20/60은 정확히 거래일 전체가 아니라 **저장된 유효 관측일 수**입니다. 실데이터 수집 오류 시 기존 관측값은 남기고 오류 표시. 7일 넘게 지난 데이터는 오래됨 표시.
+- 접근토큰은 프로세스 메모리에서 만료 전 재사용하고 재발급 최소 60초 제한을 둡니다. 재시작하면 캐시는 소실되므로 KIS 토큰 발급 제한에 걸리면 잠시 후 다시 시도하세요. 모든 외부 요청은 고정 호스트, 리다이렉트 차단, 요청 시간 제한 및 순차 호출을 사용합니다. API 사용권/호출량·데이터 재배포 조건은 본인의 계약 및 제공처 문서를 확인하세요.
+- OpenDART 공식 가이드: [기업 고유번호](https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS001&apiId=2019018), [기업개황](https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS001&apiId=2019002), [전체 재무제표](https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS003&apiId=2019020). 기업목록 메모리 캐시 24시간, 압축/해제 크기 제한과 XML 엔티티 거부.
+- 신규 코드: `app/kr_market.py`(읽기 전용 수집·캐시·검증·API), `app/static/kr-market.html/js/css`, `app/static/kr-pulse.js`(메인 요약). 신규 DB 테이블 `kr_market_cache`, `kr_market_watch`는 최초 기동 시 자동 생성됩니다. 4.0 DB·설정은 동일 경로 유지 시 보존됩니다. 관심종목 및 시장 자료는 DB에 일반 데이터로 저장됩니다. 외부 호스팅은 전체 인증과 HTTPS를 유지하세요.
+- 아직 미구현: 당일 장중 수급, 순매수 상위 종목 전체 시장 랭킹, 선물·프로그램매매, 공매도/대차, 해외 개별 종목, 애널리스트 예상 EPS/적정가 자동 산출, 뉴스 AI/알림. 기존 모델은 검증되지 않은 가설이며 국내 수급을 위험도에 합산하지 않습니다. OpenDART 실제 기본 EPS를 예상 EPS에 자동 대입하지 않습니다.

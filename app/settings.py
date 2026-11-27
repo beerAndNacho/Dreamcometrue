@@ -8,7 +8,7 @@ from urllib.parse import parse_qsl, urlencode
 from cryptography.fernet import Fernet, InvalidToken
 from .db import DEMO
 
-KEYS=('FRED_API_KEY','ECOS_API_KEY','KOSIS_API_KEY')
+KEYS=('FRED_API_KEY','ECOS_API_KEY','KOSIS_API_KEY','KIS_APP_KEY','KIS_APP_SECRET','DART_API_KEY')
 QUERIES=('KOSIS_LEADING_QUERY','KOSIS_COINCIDENT_QUERY')
 DEFAULTS={**dict.fromkeys(KEYS+QUERIES,''),'HISTORY_START':'1995-01-01','AUTO_COLLECT':'0','COLLECT_HOUR_KST':'8'}
 GUARD=threading.RLock()
@@ -78,7 +78,7 @@ def save_settings(updates):
             if k not in DEFAULTS: raise ValueError('허용되지 않은 설정 항목')
             if not isinstance(v,str): raise ValueError('설정값은 문자열이어야 합니다.')
             v=v.strip()
-            if k in KEYS and v and (len(v)>512 or not re.fullmatch(r'[A-Za-z0-9_+=./-]+',v) or '/' in v):
+            if k in KEYS and v and (len(v)>512 or not re.fullmatch(r'[A-Za-z0-9_+=./-]+',v) or (k not in ('KIS_APP_KEY','KIS_APP_SECRET') and '/' in v)):
                 raise ValueError('API 키 형식을 확인하세요.')
             if k in QUERIES: v=clean_query(v)
             if k=='HISTORY_START':

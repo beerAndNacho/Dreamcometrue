@@ -93,3 +93,18 @@ def history(db,sid,limit=None):
     if limit is not None:
         return list(reversed(db.execute(q.order_by(Obs.period.desc()).limit(limit)).tuples().all()))
     return db.execute(q.order_by(Obs.period)).tuples().all()
+
+class MarketCache(Base):
+    __tablename__='kr_market_cache'
+    key: Mapped[str]=mapped_column(String(64),primary_key=True)
+    payload: Mapped[str]=mapped_column(Text)
+    state: Mapped[str]=mapped_column(String(20))
+    message: Mapped[str]=mapped_column(Text)
+    updated: Mapped[datetime|None]=mapped_column(DateTime,nullable=True)
+    attempted: Mapped[datetime]=mapped_column(DateTime)
+
+class MarketWatch(Base):
+    __tablename__='kr_market_watch'
+    code: Mapped[str]=mapped_column(String(6),primary_key=True)
+    name: Mapped[str]=mapped_column(String(80))
+    corp_code: Mapped[str]=mapped_column(String(8),default='')

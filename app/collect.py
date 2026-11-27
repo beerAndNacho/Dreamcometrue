@@ -64,6 +64,12 @@ def collect(reserved=False, full=True):
                             db.merge(Status(series=s.id,state=state,message=msg,attempted=now(),success=old.success if old else None))
                         counts[state]+=1
                     if s.provider=='FRED' and cfg['FRED_API_KEY']: time.sleep(0.6)
+            if cfg.get('KIS_APP_KEY') and cfg.get('KIS_APP_SECRET'):
+                try:
+                    from .kr_market import collect_market
+                    collect_market(cfg)
+                except Exception:
+                    logging.getLogger(__name__).warning('Optional Korean market collection failed; macro data preserved')
             state='ok' if counts['ok']==len(SERIES) else 'partial' if counts['ok'] else 'error'
             return {'state':state,**counts}
         except Exception:

@@ -75,6 +75,23 @@ with tempfile.TemporaryDirectory() as temp:
             page.screenshot(path=str(out/f'admin-{label}.png'))
             page.locator('#FRED_API_KEY').fill('ui-mock-key');page.locator('#saveSettings').click();page.wait_for_function("document.querySelector('#flag-FRED').textContent.includes('등록됨') && document.querySelector('#FRED_API_KEY').value===''",timeout=12000)
             assert not errors,errors
-            print(label+': layout, briefing, orbit, scenario, guide, favorite, date cursor, holding edit/save/restore, admin setup OK')
+            page.locator('#KIS_APP_KEY').fill('ui-kis-key');page.locator('#KIS_APP_SECRET').fill('ui-kis-secret');page.locator('#DART_API_KEY').fill('ui-dart-key');page.locator('#saveKrKeys').click();page.wait_for_function("document.querySelector('#flag-KIS').textContent==='키 쌍 등록됨' && document.querySelector('#KIS_APP_SECRET').value===''",timeout=12000)
+            assert not errors,errors
+            page.close()
+            page,errors=page_for('/kr-market');page.wait_for_function("document.querySelectorAll('#marketCards .panel').length===2 && document.querySelector('#flowChart svg')",timeout=12000)
+            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),(label,'KR market overflow')
+            assert 'DEMO' in page.locator('#krStatus').inner_text();assert page.locator('#refreshFlow').is_disabled()
+            page.screenshot(path=str(out/f'kr-market-{label}.png'))
+            page.locator('#flow').screenshot(path=str(out/f'kr-flow-{label}.png'))
+            page.locator('#marketSelect').select_option('KOSDAQ');page.locator('#rangeSelect').select_option('5');page.locator('#chartMode').select_option('cum');assert page.locator('#flowRows tr').count()==5
+            page.locator('#loadWatch').click();page.wait_for_function("document.querySelector('#watchStatus').textContent.includes('개 등록')",timeout=12000)
+            page.locator('#ticker').fill('005930');page.locator('#tickerName').fill('삼성전자 테스트');page.locator('#corpCode').fill('00126380');page.locator('#watchForm button').click();page.wait_for_function("document.querySelector('#watchRows').textContent.includes('삼성전자 테스트')",timeout=12000)
+            page.locator('#watchRows [data-action=detail]').click();assert page.locator('#finCode').input_value()=='005930';assert page.locator('#stockChart svg').count()==1
+            page.locator('#watch').screenshot(path=str(out/f'kr-watch-{label}.png'))
+            page.locator('#watchRows [data-action=edit]').click();assert page.locator('#ticker').input_value()=='005930'
+            page.locator('#tickerName').fill('수정 종목');page.locator('#watchForm button').click();page.wait_for_function("document.querySelector('#watchRows').textContent.includes('수정 종목')",timeout=12000)
+            page.locator('#watchRows [data-action=delete]').click();page.wait_for_function("document.querySelector('#watchRows').textContent.includes('등록한 종목 없음')",timeout=12000)
+            assert not errors,errors
+            print(label+': all v4 UI + KR flow filters/chart, watch edit/delete, DART form, admin key save OK')
             context.close()
         browser.close()

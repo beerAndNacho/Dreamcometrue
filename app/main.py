@@ -20,6 +20,7 @@ from .admin import router as admin_router, require_write, require_admin, auth
 from .settings import password
 from .hosting import HOSTED, HOSTS
 from .portfolio import router as portfolio_router
+from .kr_market import router as kr_market_router, market_state, MARKETS
 from .middleware import BodyLimitMiddleware
 from .dashboard_data import build_dashboard, iso
 from .briefing import build_briefing, save_daily_snapshot
@@ -40,11 +41,12 @@ async def lifespan(app):
     stop.set()
     t.join(timeout=2)
 
-app=FastAPI(title='Macro Invest',version='4.0.0',lifespan=lifespan)
+app=FastAPI(title='Macro Invest',version='4.1.0',lifespan=lifespan)
 STATIC=Path(__file__).parent/'static'
 app.add_middleware(TrustedHostMiddleware,allowed_hosts=HOSTS, www_redirect=False)
 app.include_router(admin_router)
 app.include_router(portfolio_router)
+app.include_router(kr_market_router)
 app.add_middleware(BodyLimitMiddleware, max_bytes=1_000_000)
 app.mount('/static',StaticFiles(directory=STATIC),name='static')
 
@@ -187,4 +189,13 @@ def daily_report():
     lines.append(brief['comparison_note'])
     for item in brief['changes']:
         lines.append(f"- {item['name']}: {item['previous']:,.2f} → {item['current']:,.2f} {item['unit']} ({item['kind']}, {item['previous_period']} → {item['period']})")
+    lines.extend(['','국내 증시 수급 (KIS, 억원, 직전 날짜까지의 유효 관측일)'])
+    for market in MARKETS:
+        st=market_state(market); last=st['latest']
+        lines.append(f"- {market}: {last['date']} | 외국인 {last['foreign']:+,.2f} / 기관 {last['institution']:+,.2f} / 개인 {last['individual']:+,.2f} | {st['message']}" if last else f'- {market}: 미수집')
+        if st['stale']: lines.append('  오래됨/오류: 방향 판단 보류')
+        elif last:
+            for n in (5,20,60):
+                totals=st['totals'][str(n)]; lines.append(f"  {n}개 관측일: "+' / '.join(f'{k} {v:+,.2f}' if v is not None else f'{k} 미확인' for k,v in totals.items()))
+    lines.append('출처: https://apiportal.koreainvestment.com/ · 실제 거래일 완전성 및 KRX/NXT 집계 범위 별도 확인. 국내 수급은 미국 모델 점수에 합산하지 않음.')
     return PlainTextResponse('\n'.join(lines),headers={'Content-Disposition':f'attachment; filename=macro-report-{d["asof"]}.txt'})
