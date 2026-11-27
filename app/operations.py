@@ -26,7 +26,7 @@ from .collect import LOCK, KST, today, retry_indicator
 from .db import Base, DEMO, engine, Session, Obs, Revision, Status, SeriesSource, Run
 from .settings import load_settings, private_write, query_fingerprint
 
-VERSION='4.8.0'
+VERSION='5.0.0'
 router=APIRouter(tags=['operations'])
 LIMIT=128*1024*1024
 RESERVE=128*1024*1024

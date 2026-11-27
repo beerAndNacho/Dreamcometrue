@@ -12,7 +12,7 @@ KEYS=('FRED_API_KEY','ECOS_API_KEY','KOSIS_API_KEY','KIS_APP_KEY','KIS_APP_SECRE
 QUERIES=('KOSIS_LEADING_QUERY','KOSIS_COINCIDENT_QUERY')
 # Candidate presets from public query examples. The provider verifies the returned series identity.
 KOSIS_PRESETS={k:f'orgId=101&tblId=DT_1C8015&itmId=T1&objL1={code}' for k,code in zip(QUERIES,('A03','B03'))}
-DEFAULTS={**dict.fromkeys(KEYS+QUERIES,''),'HISTORY_START':'1995-01-01','AUTO_COLLECT':'0','COLLECT_HOUR_KST':'8','AI_PROVIDER':'off','OPENAI_MODEL':'','GEMINI_MODEL':'','ANTHROPIC_MODEL':'','AI_DAILY_LIMIT':'3','AI_MAX_OUTPUT':'1200','BLS_AUTO_REFRESH':'0','ALERT_ENABLED':'0','ALERT_DAILY':'1','ALERT_HOUR_KST':'9','ALERT_RISK':'1','ALERT_FLOW':'1','ALERT_CALENDAR':'1','ALERT_DIVIDEND':'1','ALERT_PRICE_RULES':'','BACKUP_ENABLED':'0','BACKUP_HOUR_KST':'4','BACKUP_KEEP':'3'}
+DEFAULTS={**dict.fromkeys(KEYS+QUERIES,''),'HISTORY_START':'1995-01-01','AUTO_COLLECT':'0','COLLECT_HOUR_KST':'8','AI_PROVIDER':'off','OPENAI_MODEL':'','GEMINI_MODEL':'','ANTHROPIC_MODEL':'','AI_DAILY_LIMIT':'3','AI_MAX_OUTPUT':'1200','BLS_AUTO_REFRESH':'0','ALERT_ENABLED':'0','ALERT_DAILY':'1','ALERT_HOUR_KST':'9','ALERT_RISK':'1','ALERT_FLOW':'1','ALERT_CALENDAR':'1','ALERT_DIVIDEND':'1','ALERT_PRICE_RULES':'','BACKUP_ENABLED':'0','BACKUP_HOUR_KST':'4','BACKUP_KEEP':'3','GLOBAL_AUTO_SYMBOLS':''}
 GUARD=threading.RLock()
 
 def directory():
@@ -99,6 +99,9 @@ def save_settings(updates):
             if k in ('OPENAI_MODEL','GEMINI_MODEL','ANTHROPIC_MODEL') and v and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}',v): raise ValueError('모델 ID 형식 오류')
             if k=='AI_DAILY_LIMIT' and (not v.isascii() or not v.isdigit() or not 1<=int(v)<=20): raise ValueError('하루 1~20회')
             if k=='AI_MAX_OUTPUT' and (not v.isascii() or not v.isdigit() or not 256<=int(v)<=3000): raise ValueError('출력 토큰 256~3000')
+            if k=='GLOBAL_AUTO_SYMBOLS':
+                from .global_market import normalize_auto_symbols
+                v=normalize_auto_symbols(v)
             if k=='ALERT_PRICE_RULES':
                 from .alert_rules import normalize_rules
                 v=normalize_rules(v)

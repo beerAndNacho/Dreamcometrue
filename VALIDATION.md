@@ -1,3 +1,12 @@
+# Macro Invest 5.0.0 — 검증 기록
+
+- 기준: 4.8.0 Git tree `9bb8893e44070eaba48f9272e0337070e05a42c0`; 미완료 4.9 소스를 재실행하여 152개 테스트 통과 후 확장. `python -m pytest -q`: **160 passed**(4.8 147 + 4.9 5 + 이번 8). 완료 미국 거래일/휴장일/누락·중복·오래된 자료, 이전 이력 보존, 옵션 자동 수집 유효성/최신 자료 재사용, 전략 체결 지연 및 수수료, 벤치마크, 비중·현금·상관·충격, 입력 및 관리자 인증 검증. 외부 API는 모의 응답 및 임시 DB만 사용.
+- 앱 전체 JavaScript `node --check`, Python `compileall` 통과.
+- `UI_VIEWPORT=desktop PYTHONPATH=. python tools/check_decision_ui.py OUTPUT_DIR` 및 `UI_VIEWPORT=mobile ...` 각각 통과(1440×1100, 390×844 Chromium). FastAPI TestClient 응답 브리지 사용: 종목/섹터 변경, 자동 수집 대상 설정 저장, 전략/기간 변경, 결과 카드, 포트폴리오 계산·비중 초과·종목 추가/삭제, 모바일 가로 넘침·JS 오류 검사. 가상 자료만 사용. 실제 HTTPS/모바일 기기 및 모든 이전 화면 전체 브라우저 재검사는 미실시.
+- KIS 실제 실전 계정 및 해외시세 조회 권한, 거래소/종목코드, 600개 일봉 획득 가능 여부, 수정주가/배당 처리, 실제 호출 제한, 장기간 예약 수집, 외부 API 및 운영 PostgreSQL/Render 배포는 별도 검증 필요. XNYS 공통 달력은 특별 휴장/종목별 거래정지의 완전한 검증이 아님. 가격 기반 과거 성과 모형은 실제 투자전략의 수익성을 입증하지 않음. 기존 거시 모형 가중치 및 데이터베이스 스키마를 변경하지 않음.
+
+---
+
 # Macro Invest 4.8.0 — 검증 기록
 
 - 기반: 4.7.1 Git tree `ba629637bf318953963ea146caa1f4b314a91fa1` 및 운영 4.5.2 hotfix 이력. 기존 KOSIS/OpenDART 수집 제공처와 기존 DB 스키마 유지.

@@ -34,6 +34,8 @@ from .dashboard_data import build_dashboard, iso
 from .briefing import build_briefing, save_daily_snapshot
 from .guide import explain
 from .operations import router as operations_router, schedule_backups, instance_lock, VERSION
+from .global_market import router as global_router
+from .decision_lab import router as decision_router
 from typing import Literal
 
 @asynccontextmanager
@@ -75,6 +77,8 @@ app.include_router(calendar_router)
 app.include_router(intelligence_router)
 app.include_router(notification_router)
 app.include_router(operations_router)
+app.include_router(global_router)
+app.include_router(decision_router)
 app.add_middleware(BodyLimitMiddleware, max_bytes=1_000_000)
 app.mount('/static',StaticFiles(directory=STATIC),name='static')
 

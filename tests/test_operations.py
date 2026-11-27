@@ -80,7 +80,7 @@ def test_backup_auth_download_verify_delete(isolated):
     assert c.delete(url,auth=AUTH,headers=HEAD).status_code==400
     assert c.delete(url+'?confirm=true',auth=AUTH,headers=HEAD).json()['state']=='deleted'
     assert c.get(url+'/download',auth=AUTH).status_code==404
-    status=c.get('/api/operations',auth=AUTH).json();assert status['version']=='4.8.0' and len(status['indicators'])==38 and len(status['backups'])==1 and status['backups'][0]['id']==second['id']
+    status=c.get('/api/operations',auth=AUTH).json();assert status['version']=='5.0.0' and len(status['indicators'])==38 and len(status['backups'])==1 and status['backups'][0]['id']==second['id']
     assert c.get('/operations',auth=AUTH).status_code==200
 
 

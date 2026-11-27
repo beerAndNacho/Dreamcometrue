@@ -92,6 +92,12 @@ def collect(reserved=False, full=True):
                     collect_market(cfg)
                 except Exception:
                     logging.getLogger(__name__).warning('Optional Korean market collection failed; macro data preserved')
+            if cfg.get('KIS_APP_KEY') and cfg.get('KIS_APP_SECRET') and cfg.get('GLOBAL_AUTO_SYMBOLS'):
+                try:
+                    from .global_market import collect_configured
+                    collect_configured(cfg)
+                except Exception:
+                    logging.getLogger(__name__).warning('Optional overseas collection failed; macro data preserved')
             if cfg.get('BLS_AUTO_REFRESH')=='1':
                 try:
                     from .release_calendar import refresh_if_due
