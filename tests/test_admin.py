@@ -126,3 +126,56 @@ def test_ecos_connection_uses_saved_key_and_reports_provider_errors(config, monk
             assert not error.json()['ok']
             assert all(response_code in result['message'] for result in error.json()['results'])
             assert issued_key not in error.text
+
+
+def test_kosis_connection_explains_failures_without_leaking_key(config, monkeypatch):
+    monkeypatch.setattr(admin, 'DEMO', False)
+    key = 'mock-kosis-key'
+    query = 'orgId=101&tblId=DT_1C8015&itmId=T1&objL1='
+    save_settings({
+        'KOSIS_API_KEY': key,
+        'KOSIS_LEADING_QUERY': query + 'A03',
+        'KOSIS_COINCIDENT_QUERY': query + 'B03',
+    })
+    requested_codes = set()
+
+    def handler(request):
+        assert request.url.host == 'kosis.kr'
+        assert request.url.params['apiKey'] == key
+        assert request.url.params['prdSe'] == 'M'
+        code = request.url.params['objL1']
+        requested_codes.add(code)
+        return response(request)
+
+    client_class = httpx.Client
+    monkeypatch.setattr(admin.httpx, 'Client', lambda **kwargs: client_class(
+        transport=httpx.MockTransport(handler), **kwargs,
+    ))
+    monkeypatch.setattr(admin.p.time, 'sleep', lambda _: None)
+
+    response = lambda request: httpx.Response(200, json=[{
+        'C1': request.url.params['objL1'], 'ITM_ID': 'T1',
+        'PRD_DE': request.url.params['endPrdDe'], 'DT': '100.1',
+    }])
+    assert admin.test_connection('KOSIS')['ok']
+    assert requested_codes == {'A03', 'B03'}
+
+    def timeout(request):
+        raise httpx.ConnectTimeout(str(request.url), request=request)
+
+    cases = [
+        (lambda _: httpx.Response(200, json={'err': '11', 'errMsg': key}), 'KOSIS 오류 11'),
+        (lambda _: httpx.Response(200, json={'errCode': 21, 'errMsg': key}), 'KOSIS 오류 21'),
+        (lambda _: httpx.Response(200, json={'err': '30', 'errMsg': key}), 'KOSIS 오류 30'),
+        (lambda _: httpx.Response(200, json={'err': '40', 'errMsg': key}), 'KOSIS 오류 40'),
+        (lambda _: httpx.Response(200, json={'err': key}), '인식할 수 없는 오류'),
+        (lambda _: httpx.Response(503, text=key), 'HTTP 503'),
+        (lambda _: httpx.Response(200, text=key), 'JSON 통계 응답'),
+        (timeout, '앱 서버에서 KOSIS에 연결하지 못했습니다'),
+    ]
+    for response, expected in cases:
+        result = admin.test_connection('KOSIS')
+        assert not result['ok']
+        assert len(result['results']) == 2
+        assert all(expected in row['message'] for row in result['results'])
+        assert key not in str(result)

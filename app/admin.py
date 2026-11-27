@@ -100,8 +100,8 @@ def test_connection(provider:str):
                     last=max(data)
                     results.append({'series':series.name,'state':'ok','count':len(data),'period':str(last),'value':data[last]})
                 except Exception as e:
-                    # ECOS diagnostics contain only locally defined messages.
-                    if isinstance(e, (p.EcosKeyError, p.EcosResponseError)):
+                    # Provider diagnostics contain only locally defined messages.
+                    if isinstance(e, (p.EcosKeyError, p.EcosResponseError, p.KosisResponseError)):
                         msg = str(e)
                     elif isinstance(e, p.NotConfigured):
                         msg = 'API 키 또는 통계표 설정을 확인하세요.'
