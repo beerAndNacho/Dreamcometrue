@@ -64,6 +64,18 @@ def collect(reserved=False, full=True):
                             db.merge(Status(series=s.id,state=state,message=msg,attempted=now(),success=old.success if old else None))
                         counts[state]+=1
                     if s.provider=='FRED' and cfg['FRED_API_KEY']: time.sleep(0.6)
+            if cfg.get('KIS_APP_KEY') and cfg.get('KIS_APP_SECRET'):
+                try:
+                    from .kr_market import collect_market
+                    collect_market(cfg)
+                except Exception:
+                    logging.getLogger(__name__).warning('Optional Korean market collection failed; macro data preserved')
+            if cfg.get('BLS_AUTO_REFRESH')=='1':
+                try:
+                    from .release_calendar import refresh_if_due
+                    refresh_if_due()
+                except Exception:
+                    logging.getLogger(__name__).warning('Optional BLS calendar refresh failed; prior calendar retained')
             state='ok' if counts['ok']==len(SERIES) else 'partial' if counts['ok'] else 'error'
             return {'state':state,**counts}
         except Exception:
@@ -71,6 +83,13 @@ def collect(reserved=False, full=True):
         finally:
             with Session.begin() as db:
                 run=db.get(Run,rid); run.state=state; run.finished=now()
+            if state in ('ok','partial'):
+                try:
+                    from .dashboard_data import build_dashboard
+                    from .briefing import save_daily_snapshot
+                    day=today(); save_daily_snapshot(day,build_dashboard(day))
+                except Exception:
+                    logging.getLogger(__name__).warning('Daily snapshot failed; collection data preserved')
     finally: LOCK.release()
 
 def schedule(stop):

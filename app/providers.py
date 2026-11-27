@@ -95,21 +95,71 @@ def oecd(client,start,end):
             except DataError as e: result[s.id]=e
     return result
 
+class KosisError(DataError):
+    """Safe diagnostics: never use upstream errMsg, URLs or credentials."""
+
+KOSIS_ERRORS={
+    '10':'인증키 누락 · 저장된 키 확인',
+    '11':'유효하지 않은 인증키 · KOSIS 활용신청 상태/유효기간 및 발급 원문 확인',
+    '20':'필수 요청변수 누락 · 통계표/항목/분류 확인',
+    '21':'잘못된 요청변수 · 통계표/항목/기간 확인',
+    '30':'조회결과 없음 · 통계표/분류/수록기간 확인',
+    '31':'조회결과 초과 · 조회 기간 축소',
+    '40':'호출 제한 · 잠시 후 재시도',
+    '41':'조회 행 수 제한 · 조회 기간 축소',
+    '42':'사용자별 이용 제한 · KOSIS 활용신청 확인',
+    '50':'KOSIS 서버 오류 · 잠시 후 재시도',
+}
+
 def kosis(client,s,start,end,cfg=None):
     cfg=cfg if cfg is not None else os.environ
-    key=cfg.get('KOSIS_API_KEY','').strip(); query=cfg.get(s.code,'').strip()
-    if not key or not query: raise NotConfigured(f'KOSIS_API_KEY 및 {s.code} 필요')
-    # Accept query string or generated URL; send only to the fixed official host.
-    from .settings import clean_query
-    q=dict(parse_qsl(clean_query(query).split('?',1)[-1],keep_blank_values=True))
-    if not all(q.get(k) for k in ('orgId','tblId','objL1','itmId')): raise NotConfigured('KOSIS 통계표 URL 생성에서 orgId/tblId/objL1/itmId 설정 필요')
-    p={k:v for k,v in q.items() if k in {'orgId','tblId','itmId',*[f'objL{i}' for i in range(1,9)]}}
-    p.update(method='getList',apiKey=key,format='json',prdSe='M',startPrdDe=start.strftime('%Y%m'),endPrdDe=end.strftime('%Y%m'))
-    j=get(client,'https://kosis.kr/openapi/Param/statisticsParameterData.do',p).json()
-    if not isinstance(j,list): raise DataError('KOSIS 오류 응답: 통계표 설정 확인')
-    # Prevent accidentally treating multiple categories (even equal values) as one series.
-    identities={tuple(r.get(k,'') for k in ('ITM_ID',*[f'C{i}' for i in range(1,9)])) for r in j}
-    if len(identities)>1: raise DataError('KOSIS 항목/분류를 한 개로 제한하세요.')
-    if any(str(r.get('ITM_ID','')) not in ('',q['itmId']) for r in j):
-        raise DataError('KOSIS 응답 항목 불일치')
-    return points(j,'PRD_DE','DT')
+    key=cfg.get('KOSIS_API_KEY','').strip()
+    if not key: raise NotConfigured('KOSIS API 키 미등록 · 관리자에서 저장 후 검사하세요.')
+    from .settings import effective_kosis_query
+    try:
+        query=effective_kosis_query(s.code,cfg.get(s.code,''))
+    except ValueError:
+        raise NotConfigured('KOSIS 통계표 설정 오류 · 기본 순환변동치 설정 또는 단일 항목 URL을 사용하세요.') from None
+    q=dict(parse_qsl(query,keep_blank_values=True))
+    if not all(q.get(k) for k in ('orgId','tblId','objL1','itmId')):
+        raise NotConfigured('KOSIS 통계표 URL 생성에서 orgId/tblId/objL1/itmId 설정 필요')
+    p=dict(q)
+    p.update(method='getList',apiKey=key,format='json',jsonVD='Y',prdSe='M',startPrdDe=start.strftime('%Y%m'),endPrdDe=end.strftime('%Y%m'))
+    try:
+        r=get(client,'https://kosis.kr/openapi/Param/statisticsParameterData.do',p)
+    except DataError as e:
+        raise KosisError('KOSIS HTTP/네트워크 오류 ('+str(e)+') · 서버 연결 및 이용 제한 확인') from None
+    try:
+        j=r.json()
+    except ValueError:
+        raise KosisError('KOSIS JSON 응답 형식 오류 · 서비스 상태/서버 네트워크 확인') from None
+    errors=[j] if isinstance(j,dict) else j if isinstance(j,list) else []
+    for item in errors:
+        if isinstance(item,dict) and ('err' in item or 'errMsg' in item):
+            code=str(item.get('err',''))
+            if code in KOSIS_ERRORS: raise KosisError('KOSIS 오류 '+code+' · '+KOSIS_ERRORS[code])
+            raise KosisError('KOSIS 오류 응답 · 활용신청 및 조회조건 확인')
+    if not isinstance(j,list) or any(not isinstance(r,dict) for r in j):
+        raise KosisError('KOSIS 응답 구조 오류 · 통계표 설정 확인')
+    if not j: raise KosisError('KOSIS 조회결과 없음 · 통계표/수록기간 확인')
+    # Prevent mixing multiple categories and silently swapping leading/coincident indexes.
+    identities={tuple(str(r.get(k,'')) for k in ('ITM_ID',*[f'C{i}' for i in range(1,9)])) for r in j}
+    if len(identities)>1: raise KosisError('KOSIS 항목/분류를 한 개로 제한하세요.')
+    preset_table=q['orgId']=='101' and q['tblId']=='DT_1C8015'
+    expected='선행' if s.id=='kr_leading' else '동행'
+    for row in j:
+        for field, param in [('ORG_ID','orgId'),('TBL_ID','tblId'),('ITM_ID','itmId'),*[(f'C{i}',f'objL{i}') for i in range(1,9)]]:
+            if param in q and row.get(field) not in (None,'') and str(row[field])!=q[param]:
+                raise KosisError('KOSIS 응답 통계표/항목/분류 코드 불일치')
+        if row.get('PRD_SE') not in (None,'','M'):
+            raise KosisError('KOSIS 월간 주기 불일치')
+        names=''.join(str(row.get(k) or '') for k in ('ITM_NM',*[f'C{i}_NM' for i in range(1,9)]))
+        names=''.join(names.split())
+        if preset_table or names:
+            if expected not in names or '순환변동치' not in names:
+                raise KosisError('KOSIS 지표명 불일치 · '+expected+'지수 순환변동치인지 확인')
+    try:
+        data=points(j,'PRD_DE','DT')
+    except DataError:
+        raise KosisError('KOSIS 유효 관측값 없음 또는 동일 월의 복수 값 · 통계표 확인') from None
+    return data

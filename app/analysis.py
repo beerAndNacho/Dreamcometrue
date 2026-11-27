@@ -49,13 +49,22 @@ def risk(rows,asof,phase):
     if phase not in ALLOC: missing.append('미국 OECD CLI 국면')
     if missing: return {'score':None,'allocation':None,'missing':missing,'checks':[]}
     v=rows['vix'][-1][1]; h=rows['hy'][-1][1]; p=sp[-1][1]; ma=mean(x[1] for x in sp[-200:]);
+    gap=(p/ma-1)*100
+    if not isfinite(gap) or gap<=-100:
+        return {'score':None,'allocation':None,'missing':['S&P 500 유효 가격 범위'],'checks':[]}
+    return score_inputs(v,h,gap,phase)
+
+def score_inputs(v,h,ma_gap,phase):
+    """One source of truth for the live and hypothetical risk models."""
+    if phase not in ALLOC or not all(isfinite(x) for x in (v,h,ma_gap)) or v<0 or h<0 or ma_gap<=-100:
+        raise ValueError('유효한 지표 및 경기 국면 필요')
     checks=[{'label':'VIX','value':round(v,2),'points':30 if v>=30 else 15 if v>=20 else 0,'rule':'20 / 30 이상'},
             {'label':'하이일드 OAS','value':round(h,2),'points':30 if h>=6 else 15 if h>=4 else 0,'rule':'4 / 6%p 이상'},
-            {'label':'S&P 500 vs 200일선','value':round((p/ma-1)*100,2),'points':20 if p<ma else 0,'rule':'200일선 하회'},
+            {'label':'S&P 500 vs 200일선','value':round(ma_gap,2),'points':20 if ma_gap<0 else 0,'rule':'200일선 하회'},
             {'label':'CLI 국면','value':phase,'points':20 if phase=='하강' else 10 if phase=='둔화' else 0,'rule':'둔화 / 하강'}]
     score=sum(c['points'] for c in checks)
     equity,bond,cash=ALLOC[phase]; reduction=20 if score>=70 else 10 if score>=40 else 0
-    return {'score':score,'allocation':[equity-reduction,bond,cash+reduction],'checks':checks,'missing':[], 'label':'높음' if score>=70 else '주의' if score>=40 else '낮음'}
+    return {'score':score,'allocation':[equity-reduction,bond,cash+reduction],'checks':checks,'missing':[], 'inputs':{'vix':v,'hy':h,'ma_gap':ma_gap,'phase':phase},'base_allocation':list(ALLOC[phase]),'equity_reduction':reduction,'label':'높음' if score>=70 else '주의' if score>=40 else '낮음'}
 
 def backtest(cli,prices,lag=2,fee_bps=10):
     """Exploratory monthly total-return backtest using revised CLI; no live risk overlays."""
