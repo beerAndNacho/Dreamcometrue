@@ -28,7 +28,7 @@ def test_manual_and_download_same_source():
         assert c.get('/static/manual.js').status_code==200
         assert c.get('/static/manual.css').status_code==200
         p=Links();p.feed(r.text)
-        assert p.scripts==['/static/manual.js']
+        assert p.scripts==['/static/manual.js','/static/terminal.js?v=500']
         for n,(route,_) in NAV.items():
             assert 'section-'+n in p.ids and '#section-'+n in p.hrefs and route in p.hrefs
             page,_,fragment=route.partition('#')
