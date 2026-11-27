@@ -92,7 +92,7 @@ def fake(client,s,start,end,cfg):
     if s.freq=='D': return {end-timedelta(days=i):100+i*.01 for i in range(300) if end-timedelta(days=i)>=start and (end-timedelta(days=i)).weekday()<5}
     return {month_before(end.replace(day=1),i):100+i*.01 for i in range(1,25)}
 def oecd(client,start,end):return {s.id:fake(client,s,start,end,{}) for s in SERIES if s.provider=='OECD'}
-with patch.object(c.p,'fred',fake),patch.object(c.p,'ecos',fake),patch.object(c.p,'kosis',fake),patch.object(c.p,'oecd',oecd),patch.object(c.time,'sleep',lambda *_:None):
+with patch.object(c.p,'fred',fake),patch.object(c.p,'ecos',fake),patch.object(c.p,'kosis',fake),patch.object(c.p,'oecd',oecd),patch.object(c.customs,'fetch',fake),patch.object(c.time,'sleep',lambda *_:None):
     assert c.collect()['ok']==len(SERIES)
     assert starts['sp500']==date(2020,1,1)
     assert c.collect(full=False)['ok']==len(SERIES)

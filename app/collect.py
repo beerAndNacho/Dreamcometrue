@@ -5,7 +5,7 @@ import httpx
 from sqlalchemy import select
 from .db import Session, Status, Run, Obs, SeriesSource, DEMO, init, now, write_series, history
 from .catalog import SERIES
-from . import providers as p
+from . import providers as p, customs
 from .settings import load_settings, query_fingerprint
 
 # HTTPX INFO logging can expose keys embedded in URLs.
@@ -41,13 +41,16 @@ def collect(reserved=False, full=True):
                             # First run, stale history, settings change and weekly/manual runs use full history.
                             if not full and s.freq=='D' and previous and previous.state=='ok' and latest:
                                 request_start=max(start,min(end-timedelta(days=45),latest[-1][0]-timedelta(days=7)))
+                        if s.provider=='CUSTOMS' and not full and previous and previous.state=='ok' and latest:
+                            from .analysis import month_before
+                            request_start=max(start,min(month_before(end,18),month_before(latest[-1][0],1)))
                         if s.provider=='OECD':
                             if oecd_result is None:
                                 try: oecd_result=p.oecd(client,start,end)
                                 except Exception as e: oecd_result={x.id:e for x in SERIES if x.provider=='OECD'}
                             data=oecd_result[s.id]
                             if isinstance(data,Exception): raise data
-                        else: data={'FRED':p.fred,'ECOS':p.ecos,'KOSIS':p.kosis}[s.provider](client,s,request_start,end,cfg)
+                        else: data={'FRED':p.fred,'ECOS':p.ecos,'KOSIS':p.kosis,'CUSTOMS':customs.fetch}[s.provider](client,s,request_start,end,cfg)
                         data={d:v for d,v in data.items() if start<=d<=end and math.isfinite(v)}
                         if not data: raise p.DataError('조회 기간 내 데이터 없음')
                         with Session.begin() as db:

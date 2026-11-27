@@ -8,7 +8,7 @@ from urllib.parse import parse_qsl, urlencode
 from cryptography.fernet import Fernet, InvalidToken
 from .db import DEMO
 
-KEYS=('FRED_API_KEY','ECOS_API_KEY','KOSIS_API_KEY','KIS_APP_KEY','KIS_APP_SECRET','DART_API_KEY','OPENAI_API_KEY','GEMINI_API_KEY','ANTHROPIC_API_KEY')
+KEYS=('FRED_API_KEY','ECOS_API_KEY','KOSIS_API_KEY','KIS_APP_KEY','KIS_APP_SECRET','DART_API_KEY','CUSTOMS_API_KEY','OPENAI_API_KEY','GEMINI_API_KEY','ANTHROPIC_API_KEY')
 QUERIES=('KOSIS_LEADING_QUERY','KOSIS_COINCIDENT_QUERY')
 # Candidate presets from public query examples. The provider verifies the returned series identity.
 KOSIS_PRESETS={k:f'orgId=101&tblId=DT_1C8015&itmId=T1&objL1={code}' for k,code in zip(QUERIES,('A03','B03'))}
@@ -83,7 +83,10 @@ def save_settings(updates):
             if k not in DEFAULTS: raise ValueError('허용되지 않은 설정 항목')
             if not isinstance(v,str): raise ValueError('설정값은 문자열이어야 합니다.')
             v=v.strip()
-            if k in KEYS and v and (len(v)>512 or not re.fullmatch(r'[A-Za-z0-9_+=./-]+',v) or (k not in ('KIS_APP_KEY','KIS_APP_SECRET','KOSIS_API_KEY') and '/' in v)):
+            if k=='CUSTOMS_API_KEY':
+                from .customs import normalized_key
+                v=normalized_key(v)
+            if k in KEYS and v and (len(v)>512 or not re.fullmatch(r'[A-Za-z0-9_+=./-]+',v) or (k not in ('KIS_APP_KEY','KIS_APP_SECRET','KOSIS_API_KEY','CUSTOMS_API_KEY') and '/' in v)):
                 raise ValueError('API 키 형식을 확인하세요.')
             if k in QUERIES: v=effective_kosis_query(k,v)
             if k=='HISTORY_START':

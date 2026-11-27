@@ -42,7 +42,7 @@ def history_context(sid, rows):
         if not isfinite(old) or not isfinite(value):
             continue
         entry={'period':str(d),'value':old,'delta':round(value-old,8)}
-        if s.group in ('주가지수','환율','원자재') and old>0 and value>0:
+        if (s.group in ('주가지수','환율','원자재') or sid in ('kr_ic_exports','kr_memory_exports','electronics_orders','electronics_inventory','electronics_shipments','electronics_backlog','corporate_profit','reserves')) and old>0 and value>=0:
             entry['relative_pct']=round((value/old-1)*100,6)
         out['windows'][str(months)+'m']=entry
     # Exactly five calendar years, require coverage and no large internal gaps.
@@ -72,6 +72,9 @@ def diagnostics(usable, asof, busy=False):
         ('net_liquidity_proxy','미국 순유동성 참고치 (연준 자산-TGA-ON RRP)',
          '십억 달러',('fed_assets','tga','rrp'),lambda a,b,c:(a-b)/1000-c,14,
          '동일 수요일 관측값, 연준 자산·TGA 백만달러를 십억달러로 환산. 실제 위험자산 유입액 아님.'),
+        ('electronics_inventory_shipments','미국 기타 전자부품 재고/월간 출하 비율','개월 상당',('electronics_inventory','electronics_shipments'),lambda a,b:a/b,75,'동일 월 계절조정 명목 재고/월 출하. 메모리 전용 재고일수가 아니며 계절조정 방법의 차이 가능.'),
+        ('profit_gdp','미국 세후 조정 기업이익/GDP','%',('corporate_profit','nominal_gdp'),lambda a,b:a/b*100,190,'동일 분기 계절조정 연율 금액 비교. 기업 영업이익률이나 S&P EPS가 아님.'),
+        ('equity_gdp_proxy','미국 비금융기업 주식 부채/GDP 참고 비율','%',('nonfinancial_equity','nominal_gdp'),lambda a,b:a/1000/b*100,190,'동일 분기 분기말 주식 부채 평가액(백만달러)/명목 GDP 연율(십억달러). 전체 시장 시총/GDP 또는 PER이 아님.'),
         ('sofr_iorb_gap','미국 SOFR-IORB 금리차',
          '%p',('sofr','iorb'),lambda a,b:a-b,7,
          '동일 날짜 익일 담보부 조달금리에서 준비금 이자율 차감. 정책·분기말 요인 영향, 단독 위험판정 아님.')
@@ -86,7 +89,9 @@ def diagnostics(usable, asof, busy=False):
             maps=[dict(usable[k]) for k in ids]
             if 0<=(asof-d).days<=max_age and all(d in m and isfinite(m[d]) for m in maps):
                 values=[m[d] for m in maps]
-                if sid!='net_liquidity_proxy' or all(v>=0 for v in values):
+                nonnegative={'net_liquidity_proxy','electronics_inventory_shipments','equity_gdp_proxy'}
+                ratio={'electronics_inventory_shipments','profit_gdp','equity_gdp_proxy'}
+                if (sid not in nonnegative or all(v>=0 for v in values)) and (sid not in ratio or values[-1]>0):
                     v=formula(*values)
                     if isfinite(v):
                         item.update(value=round(v,8),period=str(d),state='관측 가능')

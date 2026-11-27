@@ -38,9 +38,9 @@ with tempfile.TemporaryDirectory() as temp:
                 page.set_content(html(path).replace('</head>',boot+'</head>'),wait_until='load')
                 return page,errors
             page,errors=page_for('/');page.wait_for_function("document.querySelectorAll('#marketMetrics .metric').length===8 && document.querySelector('#cliChart svg')",timeout=12000)
-            assert '85' in page.locator('#qualitySummary').inner_text()
+            assert '103' in page.locator('#qualitySummary').inner_text()
             assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),(label,'overflow')
-            page.wait_for_function("document.querySelectorAll('#guideList .guide-card').length===85 && document.querySelector('#orbitChart svg') && document.querySelector('#simResult .sim-score')",timeout=12000)
+            page.wait_for_function("document.querySelectorAll('#guideList .guide-card').length===103 && document.querySelector('#orbitChart svg') && document.querySelector('#simResult .sim-score')",timeout=12000)
             assert page.locator('#briefNotes .brief-note').count()<=3
             page.screenshot(path=str(out/f'dashboard-{label}.png'))
             page.locator('#orbitPanel').screenshot(path=str(out/f'orbit-{label}.png'))
@@ -55,7 +55,7 @@ with tempfile.TemporaryDirectory() as temp:
             assert page.locator('#marketMetrics .metric').count()==9
             page.locator('#search').fill('');page.locator('#favoriteOnly').check();assert page.locator('#indicators tr').count()==1
             page.locator('#indicators [data-favorite]').click();assert '조건에 맞는 지표' in page.locator('#indicators').inner_text()
-            page.locator('#resetFilters').click();assert page.locator('#indicators tr').count()==85
+            page.locator('#resetFilters').click();assert page.locator('#indicators tr').count()==103
             page.locator('#search').fill('코스피');assert page.locator('#indicators tr').count()==1
             page.locator('#indicators [data-series]').click();page.wait_for_function("document.querySelector('#detailChart svg') && document.querySelector('#detailTitle').textContent.includes('코스피')",timeout=12000)
             assert '한국 유가증권시장' in page.locator('#detailGuide').inner_text()
@@ -69,7 +69,7 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#pStock').fill('5000');page.locator('#pMode').select_option('manual');assert '차이' in page.locator('#pRebalance').inner_text()
             assert not errors,errors
             page.close()
-            page,errors=page_for('/admin');page.wait_for_function("document.querySelector('#adminStats').textContent.includes('85')",timeout=12000)
+            page,errors=page_for('/admin');page.wait_for_function("document.querySelector('#adminStats').textContent.includes('103')",timeout=12000)
             assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),(label,'admin overflow')
             assert page.locator('#setupSteps .setup-step').count()==5
             page.screenshot(path=str(out/f'admin-{label}.png'))

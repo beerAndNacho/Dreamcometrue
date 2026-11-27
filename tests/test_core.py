@@ -8,7 +8,7 @@ from app.db import init,Session,write_series,history,Revision
 from sqlalchemy import select
 
 def test_catalog():
-    assert len(SERIES)==85 and len(BY_ID)==len(SERIES)
+    assert len(SERIES)==103 and len(BY_ID)==len(SERIES)
     assert len({(s.provider,s.code,s.item) for s in SERIES})==len(SERIES)
 
 def test_parse_missing_and_duplicate():

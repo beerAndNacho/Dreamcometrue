@@ -100,12 +100,30 @@ SERIES = [
     Series("cli_de","독일 OECD CLI","OECD","DEU","M","pt","경기선행","level"),
     Series("cli_in","인도 OECD CLI","OECD","IND","M","pt","경기선행","level"),
     Series("cli_g7","G7 OECD CLI","OECD","G7","M","pt","경기선행","level"),
+    Series("electronics_orders","미국 기타 전자부품 신규주문",F,"A34HNO","M","백만 달러","반도체","level"),
+    Series("electronics_inventory","미국 기타 전자부품 재고",F,"A34HTI","M","백만 달러","반도체","level"),
+    Series("electronics_shipments","미국 기타 전자부품 출하",F,"A34HVS","M","백만 달러","반도체","level"),
+    Series("electronics_backlog","미국 기타 전자부품 미납주문",F,"A34HUO","M","백만 달러","반도체","level"),
+    Series("semi_import_price","미국 반도체 수입물가 증가율",F,"IR21320","M","% YoY","반도체","yoy"),
+    Series("semi_export_price","미국 반도체 수출물가 증가율",F,"IQ21320","M","% YoY","반도체","yoy"),
+    Series("electronics_import_price","미국 반도체·전자부품 수입물가 증가율",F,"IZ3344","M","% YoY","반도체","yoy"),
+    Series("corporate_profit","미국 세후 기업이익 (IVA·CCAdj 조정)",F,"CPATAX","Q","십억 달러 SAAR","기업 이익","level"),
+    Series("nominal_gdp","미국 명목 GDP",F,"GDP","Q","십억 달러 SAAR","경기","level"),
+    Series("nonfinancial_equity","미국 비금융기업 주식 부채 평가액",F,"NCBEILQ027S","Q","백만 달러","밸류에이션 참고","level"),
+    Series("creditcard_delinquency","미국 신용카드 대출 연체율",F,"DRCCLACBS","Q","%","위험","level"),
+    Series("loan_delinquency","미국 전체 은행대출 연체율",F,"DRALACBS","Q","%","위험","level"),
+    Series("financial_stress","세인트루이스 연은 금융스트레스지수",F,"STLFSI4","W","지수","위험","level"),
+    Series("adjusted_nfci","시카고 연은 조정 금융여건",F,"ANFCI","W","지수","위험","level"),
+    Series("cfnai","시카고 연은 국가활동지수",F,"CFNAI","M","지수","경기","level"),
+    Series("real_income","미국 실질 가처분소득 증가율",F,"DSPIC96","M","% YoY","경기","yoy"),
+    Series("kr_ic_exports","한국 집적회로 수출 (HS 8542)","CUSTOMS","8542","M","백만 달러","반도체","level"),
+    Series("kr_memory_exports","한국 메모리 집적회로 수출 (HS 854232)","CUSTOMS","854232","M","백만 달러","반도체","level"),
 ]
 BY_ID = {s.id:s for s in SERIES}
 
 def source_url(s):
     if s.provider == F: return 'https://fred.stlouisfed.org/series/'+s.code
-    return {'OECD':'https://data-explorer.oecd.org/','ECOS':'https://ecos.bok.or.kr/','KOSIS':'https://kosis.kr/'}[s.provider]
+    return {'OECD':'https://data-explorer.oecd.org/','ECOS':'https://ecos.bok.or.kr/','KOSIS':'https://kosis.kr/','CUSTOMS':'https://www.data.go.kr/data/15101609/openapi.do'}[s.provider]
 
 def metadata(s):
     return {**asdict(s),'url':source_url(s)}
