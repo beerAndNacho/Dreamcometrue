@@ -132,6 +132,29 @@ with tempfile.TemporaryDirectory() as temp:
             assert not errors,errors
             assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),(label,'pressure stock overflow')
             print(label+': market pressure, stock selection, period, comparison, demo safeguards OK')
+            page.close()
+            page,errors=page_for('/kr-value')
+            page.wait_for_function("document.querySelector('#annualChart svg') && !document.querySelector('#valueStock').disabled",timeout=12000)
+            assert '가상 데이터' in page.locator('#valueStatus').inner_text()
+            assert page.locator('#valueRefresh').is_disabled() and page.locator('#eventSave').is_disabled()
+            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),(label,'value overflow')
+            page.locator('#valueStock').select_option('000270')
+            page.wait_for_function("document.querySelector('#valueStatus').textContent.includes('기아 테스트') && !document.querySelector('#valueStock').disabled",timeout=12000)
+            page.locator('#valueYears').select_option('10')
+            page.wait_for_function("document.querySelectorAll('#annualRows tbody tr').length===10 && !document.querySelector('#valueStock').disabled",timeout=12000)
+            page.screenshot(path=str(out/f'kr-value-{label}.png'))
+            page.locator('#dividendPanel').screenshot(path=str(out/f'kr-dividend-{label}.png'))
+            page.locator('#applyActual').click(); assert float(page.locator('#sEps').input_value())>0
+            page.locator('#sBps').fill('80000');page.locator('#sIc').fill('200000');page.locator('#scenarioRun').click()
+            page.wait_for_function("document.querySelector('#reinvestChart svg') && document.querySelector('#scenarioMessage').textContent.includes('완료')",timeout=12000)
+            assert page.locator('#scenarioCards .metric').count()==7
+            page.locator('#scenarioPanel').screenshot(path=str(out/f'kr-value-scenario-{label}.png'))
+            page.locator('#sEps').fill('-100');page.locator('#scenarioRun').click();page.wait_for_function("document.querySelector('#reinvestChart svg')",timeout=12000)
+            assert '—' in page.locator('#scenarioPrices tbody tr').first.inner_text()
+            assert not errors,errors
+            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),(label,'value scenario overflow')
+            print(label+': annual financials, dividend history, company/period selection, scenario and demo safeguards OK')
+            page.close()
             for code in ['005930','000660','000270']:
                 assert client.delete('/api/kr-market/watch/'+code,auth=auth,headers={'X-Macro-Admin':'1'}).status_code==200
             print(label+': intraday ranking, aligned comparison, sector tags, filters and responsive UI OK')
