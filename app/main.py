@@ -20,6 +20,8 @@ from .admin import router as admin_router, require_write, require_admin, auth
 from .settings import password
 from .hosting import HOSTED, HOSTS
 from .portfolio import router as portfolio_router
+from .journal import router as journal_router
+from .vintage_backtest import router as vintage_router
 from .kr_market import router as kr_market_router, market_state, MARKETS
 from .kr_insights import router as kr_insights_router
 from .kr_pressure import router as kr_pressure_router
@@ -53,11 +55,13 @@ async def lifespan(app):
         t.join(timeout=2)
         alerts.join(timeout=2)
 
-app=FastAPI(title='Macro Invest',version='4.6.0',lifespan=lifespan)
+app=FastAPI(title='Macro Invest',version='4.7.0',lifespan=lifespan)
 STATIC=Path(__file__).parent/'static'
 app.add_middleware(TrustedHostMiddleware,allowed_hosts=HOSTS, www_redirect=False)
 app.include_router(admin_router)
 app.include_router(portfolio_router)
+app.include_router(journal_router)
+app.include_router(vintage_router)
 app.include_router(kr_market_router)
 app.include_router(kr_insights_router)
 app.include_router(kr_pressure_router)

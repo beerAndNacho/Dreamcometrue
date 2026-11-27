@@ -18,4 +18,4 @@ jobs:
           cache: pip
       - run: python -m pip install -r requirements-dev.txt
       - run: python -m pytest -q
-      - run: node --check app/static/app.js && node --check app/static/admin.js && node --check app/static/orbital-v4.js && node --check app/static/kr-market.js && node --check app/static/kr-pulse.js && node --check app/static/kr-insights.js && node --check app/static/kr-pressure.js && node --check app/static/kr-value.js && node --check app/static/intelligence.js && node --check app/static/notifications.js && node --check app/static/pwa.js && node --check app/static/sw.js
+      - run: node --check app/static/app.js && node --check app/static/admin.js && node --check app/static/orbital-v4.js && node --check app/static/kr-market.js && node --check app/static/kr-pulse.js && node --check app/static/kr-insights.js && node --check app/static/kr-pressure.js && node --check app/static/kr-value.js && node --check app/static/intelligence.js && node --check app/static/notifications.js && node --check app/static/pwa.js && node --check app/static/sw.js && node --check app/static/journal.js
