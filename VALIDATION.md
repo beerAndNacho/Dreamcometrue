@@ -50,3 +50,11 @@
 - 4.1 초기 UI Chromium 데스크톱/모바일: 기존 UI 회귀와 신규 수급 그래프/시장 필터/기간 선택, 관심종목 등록·편집·삭제, DART 입력 연결, 관리자 키 저장, 가로 넘침 검사 통과. 실제 FastAPI TestClient 브리지 방식. 이후 데모 종목 차트 데이터 추가 후 회귀 pytest 통과; 전체 브라우저 재실행은 시간 제한으로 중단되어 최종 전체 UI 재검증은 필요합니다.
 - Python compileall 및 Node 문법 검사.
 - 실전 KIS·OpenDART 키 및 외부 API 실제 호출, KRX 단위/집계 범위 교차 대조, Docker/PostgreSQL, Render 실배포는 미검증. 데이터 재배포 권한 및 거래일 완전성 보장 없음.
+
+
+## 4.2 검증 기록
+- 기준 소스 Git tree `7aea6d0ab8580706d38806d059d8eca5e25b9c4e` (4.1)과 로컬 ZIP 일치 확인.
+- `python -m pytest -q`: **53 passed** (기존 47 + 신규 6). 모의 KIS 순위 파라미터/단위/부호/상한/중복/누락, 공통 관측일 및 제외 처리, 업종 표본 포함/등록 수, 원주가 변화율, 장중 시간 제한/캐시/호출 간격/잠금, 인증·Origin·데모·잘못된 입력 검증.
+- `python -m tools.check_ui`: PC 1440px, 모바일 390px 전체 4.0/4.1/4.2 Chromium 브라우저 회귀 검사 통과. 기존 화면/관리자 키 저장/포트폴리오/차트/종목 편집, 신규 장중 순위 필터, 기간 비교, 업종 태그, 히트맵, 동반 순매수 필터, 가로 넘침 검사. 실제 HTML/CSS/JS 및 FastAPI TestClient 응답 브리지 방식으로 수행(실제 TCP 서버와 HTTP 인증 창은 미검증).
+- Python compileall 및 기존·신규 JavaScript 문법 검사 통과.
+- KIS 실전 API 키/실 응답 미확보로 외부 조회는 MockTransport 또는 데모만 검사했습니다. 장중 순위 응답의 집계일/시각과 실제 단위 및 집계 범위는 실전 HTS와 별도 확인 필요. 공식 거래일 완전성/휴장일 확인, Render/PostgreSQL/Docker 실운영, 원격 GitHub Actions 실행 결과는 이 검증에 포함하지 않았습니다. 기존 개인용 단일 worker·HTTPS 정책 유지.

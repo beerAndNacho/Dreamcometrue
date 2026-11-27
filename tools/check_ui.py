@@ -93,5 +93,29 @@ with tempfile.TemporaryDirectory() as temp:
             page.locator('#watchRows [data-action=delete]').click();page.wait_for_function("document.querySelector('#watchRows').textContent.includes('등록한 종목 없음')",timeout=12000)
             assert not errors,errors
             print(label+': all v4 UI + KR flow filters/chart, watch edit/delete, DART form, admin key save OK')
+            page.close()
+            for code,name in [('005930','삼성전자 테스트'),('000660','하이닉스 테스트'),('000270','기아 테스트')]:
+                assert client.put('/api/kr-market/watch',auth=auth,headers={'X-Macro-Admin':'1'},json={'code':code,'name':name}).status_code==200
+            page,errors=page_for('/kr-insights')
+            page.wait_for_function("document.querySelector('#compareStatus').textContent.includes('3/3종목')",timeout=12000)
+            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),(label,'insights overflow')
+            page.locator('#rankRun').click();page.wait_for_function("document.querySelector('#rankStatus').textContent.includes('가상 데이터')",timeout=12000)
+            assert page.locator('#rankRows tr').count()==8
+            page.locator('#rankDirection').select_option('sell');assert '조회 결과 없음' in page.locator('#rankRows').inner_text()
+            page.locator('#rankRun').click();page.wait_for_function("document.querySelector('#rankStatus').textContent.includes('순매도')",timeout=12000)
+            page.screenshot(path=str(out/f'kr-insights-{label}.png'))
+            page.locator('#comparePanel summary').click()
+            page.locator('#sectorFields select[data-code="005930"]').select_option('반도체')
+            page.wait_for_function("document.querySelector('#sectorRows').textContent.includes('반도체') && !document.querySelector('#compareRun').disabled",timeout=12000)
+            page.locator('#sectorFields select[data-code="000660"]').select_option('반도체')
+            page.wait_for_function("document.querySelector('#sectorRows').textContent.includes('2/2') && !document.querySelector('#compareRun').disabled",timeout=12000)
+            page.locator('#comparePeriod').select_option('20');page.locator('#compareRun').click()
+            page.wait_for_function("document.querySelector('#compareStatus').textContent.includes('20개 공통 관측일')",timeout=12000)
+            page.locator('#compareSort').select_option('institution');page.locator('#bothBuy').check();page.locator('#bothBuy').uncheck()
+            page.locator('#comparePanel').screenshot(path=str(out/f'kr-compare-{label}.png'))
+            assert not errors,errors
+            for code in ['005930','000660','000270']:
+                assert client.delete('/api/kr-market/watch/'+code,auth=auth,headers={'X-Macro-Admin':'1'}).status_code==200
+            print(label+': intraday ranking, aligned comparison, sector tags, filters and responsive UI OK')
             context.close()
         browser.close()
