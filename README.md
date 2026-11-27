@@ -1,4 +1,12 @@
-# Macro Invest 4.5.5 — Macro & Sector Data Expansion / 글로벌 투자 관측소
+# Macro Invest 4.5.6 — User Manual / 글로벌 투자 관측소
+
+## 사용자 매뉴얼
+
+- [통합 사용자 매뉴얼 (한국어)](app/USER_MANUAL.md): 최초 설치, API 설정, 수집, 지표 해석, 국내 증시, 기업 가치, AI 보고서, 포트폴리오, 백테스트, 오류 대응, 보안 등 17개 항목.
+- 앱의 모든 주요 메뉴에서 **사용 설명서** (`/manual`)를 열 수 있습니다. 목차·검색·관련 기능 바로가기·Markdown 다운로드·브라우저 인쇄/PDF 저장을 제공합니다.
+- 문서와 앱 화면은 동일한 Markdown 원본을 사용합니다. Docker 이미지에는 기존 `COPY app ./app`으로 함께 포함됩니다. 별도 AI/API 설정, 외부 CDN 또는 신규 패키지가 필요하지 않습니다.
+- 기존 DB, 데이터 수집 및 계산 모델은 변경하지 않았습니다. 문서 수정 시 `app/USER_MANUAL.md`를 편집하고 섹션 번호·바로가기를 유지하세요. 지원 문법: 제목, 문단, 목록, 코드 블록, 인라인 코드·굵은 글씨 및 HTTPS 링크. 관련 파일은 `app/manual.py`, `app/static/manual.css`, `app/static/manual.js`, `tests/test_manual.py`입니다.
+
 
 ## 4.5.5 산업·신용·가치 데이터 보강
 

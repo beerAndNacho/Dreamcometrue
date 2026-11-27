@@ -1,4 +1,11 @@
-# Macro Invest 4.5.2 — KOSIS 연동 검증
+# Macro Invest 검증 기록
+
+## 4.5.6 매뉴얼 검증
+
+- 기반 4.5.5 커밋 `9456c92eba846513bd9987b456daf04bb0b89d2f`: GitHub Actions run 46013737529, Python 3.11/3.12 성공, 127개 pytest 및 JavaScript 문법 검사 통과. https://github.com/beerAndNacho/Dreamcometrue/actions/runs/46013737529
+- 신규 매뉴얼은 17개 제목, 실제 기능 링크, 동일 Markdown 다운로드, 모든 메뉴 진입 링크, HTML 이스케이프 및 호스팅 보호에 대한 테스트를 추가했습니다. 신규 CI 결과는 해당 커밋의 Checks 확인. PC/모바일 실브라우저·인쇄·실계정 API·운영 배포는 별도 검증 필요.
+
+## 이전 검증 기록: 4.5.2 — KOSIS 연동 검증
 
 ## 4.5.2 OpenDART 조회 수정
 

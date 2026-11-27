@@ -30,6 +30,7 @@ from .middleware import BodyLimitMiddleware
 from .dashboard_data import build_dashboard, iso
 from .briefing import build_briefing, save_daily_snapshot
 from .guide import explain
+from .manual import router as manual_router
 from typing import Literal
 
 @asynccontextmanager
@@ -47,7 +48,7 @@ async def lifespan(app):
     stop.set()
     t.join(timeout=2)
 
-app=FastAPI(title='Macro Invest',version='4.5.5',lifespan=lifespan)
+app=FastAPI(title='Macro Invest',version='4.5.6',lifespan=lifespan)
 STATIC=Path(__file__).parent/'static'
 app.add_middleware(TrustedHostMiddleware,allowed_hosts=HOSTS, www_redirect=False)
 app.include_router(admin_router)
@@ -58,6 +59,7 @@ app.include_router(kr_pressure_router)
 app.include_router(kr_value_router)
 app.include_router(calendar_router)
 app.include_router(intelligence_router)
+app.include_router(manual_router)
 app.add_middleware(BodyLimitMiddleware, max_bytes=1_000_000)
 app.mount('/static',StaticFiles(directory=STATIC),name='static')
 
