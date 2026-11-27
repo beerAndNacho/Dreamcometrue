@@ -1,13 +1,54 @@
-# Macro Invest 4.5.2 — KOSIS 연동 검증
+# Macro Invest 5.0.0 — 검증 기록
 
-## 4.5.2 OpenDART 조회 수정
+- 기준: 4.8.0 Git tree `9bb8893e44070eaba48f9272e0337070e05a42c0`; 미완료 4.9 소스를 재실행하여 152개 테스트 통과 후 확장. `python -m pytest -q`: **160 passed**(4.8 147 + 4.9 5 + 이번 8). 완료 미국 거래일/휴장일/누락·중복·오래된 자료, 이전 이력 보존, 옵션 자동 수집 유효성/최신 자료 재사용, 전략 체결 지연 및 수수료, 벤치마크, 비중·현금·상관·충격, 입력 및 관리자 인증 검증. 외부 API는 모의 응답 및 임시 DB만 사용.
+- 앱 전체 JavaScript `node --check`, Python `compileall` 통과.
+- `UI_VIEWPORT=desktop PYTHONPATH=. python tools/check_decision_ui.py OUTPUT_DIR` 및 `UI_VIEWPORT=mobile ...` 각각 통과(1440×1100, 390×844 Chromium). FastAPI TestClient 응답 브리지 사용: 종목/섹터 변경, 자동 수집 대상 설정 저장, 전략/기간 변경, 결과 카드, 포트폴리오 계산·비중 초과·종목 추가/삭제, 모바일 가로 넘침·JS 오류 검사. 가상 자료만 사용. 실제 HTTPS/모바일 기기 및 모든 이전 화면 전체 브라우저 재검사는 미실시.
+- KIS 실제 실전 계정 및 해외시세 조회 권한, 거래소/종목코드, 600개 일봉 획득 가능 여부, 수정주가/배당 처리, 실제 호출 제한, 장기간 예약 수집, 외부 API 및 운영 PostgreSQL/Render 배포는 별도 검증 필요. XNYS 공통 달력은 특별 휴장/종목별 거래정지의 완전한 검증이 아님. 가격 기반 과거 성과 모형은 실제 투자전략의 수익성을 입증하지 않음. 기존 거시 모형 가중치 및 데이터베이스 스키마를 변경하지 않음.
 
-- Python 자동화 테스트 114개 통과 (OpenDART 신규 23개 포함). 실제 인증키를 사용하지 않은 모의 응답 및 임시 SQLite 검증. 모든 앱 JavaScript 문법 및 Python 컴파일 검사 통과. 실제 브라우저 UI 조작, 외부 API 실계정 및 운영 배포 검증은 미실시.
+---
+
+# Macro Invest 4.8.0 — 검증 기록
+
+- 기반: 4.7.1 Git tree `ba629637bf318953963ea146caa1f4b314a91fa1` 및 운영 4.5.2 hotfix 이력. 기존 KOSIS/OpenDART 수집 제공처와 기존 DB 스키마 유지.
+- `python -m pytest -q`: **147 passed** (기존 137 + 신규 10). 임시 SQLite DB의 일관된 snapshot, 커밋/WAL 및 미커밋 값 제외, SHA-256/스키마 검사, 원래 값 복구 및 복원 직전 백업, 잠금과 자동화 비활성화, 관리자 인증·Origin·헤더·다운로드·삭제 보호, 자동 보존·일일 중복 방지·디스크 여유, 미래/오래됨/알 수 없는 계열 검사, 공통 수집 엔진의 개별 재시도, 장부 미리보기·모드·충돌·잘못된 거래 차단 확인.
+- 모든 앱 JavaScript `node --check`, Python `compileall`, `git diff --check` 통과.
+- `PYTHONPATH=. python tools/check_operations_ui.py OUTPUT_DIR`: 1440×1100 및 390×844 Chromium 실제 화면 조작 검사 통과. FastAPI TestClient 응답 브리지로 일정 저장, 백업 생성 및 검사, 데이터 무결성 검사, 모바일 가로 넘침, 장부 JSON 미리보기 및 교체를 검증. 실 TCP/HTTPS 접속 및 실제 스마트폰 설치는 별도 확인 필요.
+- Dockerfile PostgreSQL client 설치 및 GitHub Actions 전용 PostgreSQL 16 service smoke test `python -m tools.check_postgres_backup`를 추가. 이 실행 환경에는 PostgreSQL 서버/CLI와 Docker가 없어 직접 실행하지 못했습니다. CI 결과와 실제 운영 DB에서 별도 검증이 필요합니다.
+- 실제 API 인증키, Render 운영 복원, 장기 예약 작업/실제 파일 권한·디스크 장애는 미검증. 전체 기존 화면 브라우저 재검사는 이번에 하지 않았으며 기존 자동화 회귀 테스트는 통과했습니다. 앱 내 DB 백업은 설정/키/환경변수의 외부 백업을 대체하지 않으며, 전체 DB 복원은 오프라인 명령만 지원합니다. 투자 장부는 해당 프로그램의 JSON만 지원합니다.
+
+---
+
+# Macro Invest 4.7.1 — 검증 기록
+
+## 4.7.1 OpenDART 조회 수정
+
+- Python 자동화 테스트 137개 통과 (OpenDART 신규 23개 포함). 실제 인증키를 사용하지 않은 모의 응답 및 임시 SQLite 검증. 모든 앱 JavaScript 문법 및 Python 컴파일 검사 통과. 실제 브라우저 UI 조작, 외부 API 실계정 및 운영 배포 검증은 미실시.
 - 관리자 `/admin#krApiSetup`에서 인증키 저장 후 **OpenDART 연결 검사**를 실행합니다. 삼성전자 기업개황/고유번호 ZIP/2년 전 연결 연간 재무/배당 표본을 검사합니다. 실 사용자 데이터나 기존 설정은 변경하지 않습니다.
 - 공식 오류 코드 010/011/012(인증 및 서버 IP), 013/014(자료·파일 없음), 020/021(제한), 100/101(요청), 800/900/901(서버/계정)을 구분합니다. 원본 응답 메시지·인증키·URL은 표시하지 않습니다. ZIP 대신 오류 XML/JSON이 돌아와도 진단합니다. 인증/호출 제한/네트워크 실패 시 후속 공시 수집을 중단하고 기존 자료를 보존합니다.
 - 국내 증시 사업보고서 기본 사업연도는 직전 연도입니다. 실제 공시 여부와 연결/별도 구분은 사용자가 확인해야 합니다. 기업가치 화면에 연도별 재무·배당 오류와 자료 없음 사유를 표시합니다. KOSIS 설정/DB 구조 변경 없음.
 - 공식 가이드: https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS003&apiId=2019020 , https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS001&apiId=2019018 . 실계정 및 서버 외부 IP는 사용자 환경에서 연결 검사해야 합니다.
 
+
+- 기반: 4.6.0 Git tree `c549411f6936ba71a290fecdbc46d04a240e6145` (개발 브랜치, 기존 main 4.5.1 보호). 기존 KOSIS/설정/수집 파일 변경 없음. 새 장부 테이블만 추가.
+- `python -m pytest -q`: **114 passed** (102 회귀 + 12 신규). Python 3.13 로컬 임시 SQLite DB. 이동평균 부분매도 원가/잔여 반올림/전량 매도, 외화 환율 효과, 현금 대사, 배당/기타 비용, 날짜·수량·가격·초과 매도·현금 부족·숫자 범위, 가격 누락과 소급 편집, 입출금 조정 성과/MDD, 벤치마크 정확한 날짜와 환산, 관리자/Origin/쓰기 헤더/장부 revision 충돌 및 JSON, 시점 검증의 cutoff/비용/늦은 수정/CSV/데모 보호, 모의 운영 DB의 종가/환율 제안 및 시점 검증 API를 검사했습니다.
+- Python compileall 및 모든 앱 JS `node --check` 통과. GitHub CI에 신규 JS 문법 검사 포함.
+- `PYTHONPATH=. python tools/check_journal_ui.py OUTPUT_DIR`: 1440x1100 PC 및 390x844 모바일 Chromium 조작 통과. 실제 FastAPI TestClient 응답 브리지: 입금, 매수, USD 환율, 메모 HTML 이스케이프, 누락 평가, 날짜별 가격 등록, 차트, 평가 입력 미리 채우기, 거래 수정/삭제, 가격 삭제, 재조회/서버 저장, 가로 넘침 및 JS 오류 검사. 실브라우저의 로컬 네트워크/HTTPS 접속은 별도 검사 필요.
+- 기존 `tools/check_ui.py` PC/모바일 대시보드·경제지표·관리자·국내 증시/관심종목·수급 순위·시장 압력·가치평가에서 각 검사의 성공 출력까지 확인. 프로세스 종료 단계에서 실행 시간 제한이 발생하여 정상 종료 코드 확인은 하지 못함. 기존 AI/알림 화면은 이번에 전체 브라우저 재검사하지 않았으며 자동화 회귀는 통과.
+- 실제 운영 DB/PostgreSQL, Render/Docker, KIS/ECOS/KOSIS 실계정, 실제 Telegram/PWA/외부 AI, 실제 사용자 투자수익률 또는 12개월 이상 시점별 CLI 저장 이력은 검증하지 않았습니다. 사용자가 4.5.1 KOSIS 정상 작동을 확인한 코드 및 설정은 유지했습니다. 새 장부는 기존 시뮬레이터와 분리되고 실제 외화 현금/세무 회계는 지원하지 않습니다. 수익률/백테스트는 가설 및 사용자가 입력한 평가에 의존합니다. 모든 버그 부재 또는 성과 보장을 의미하지 않습니다.
+
+---
+
+# Macro Invest 4.6.0 — 검증 기록
+
+- 기준: 4.5.1 Git tree `7f251c9ae421878357f5ed9660d6189f0ea2e3f7`.
+- `python -m pytest -q`: **102 passed** (91 회귀 + 11 신규). 임시 SQLite/설정 및 MockTransport/모의 전송: 암호화/비노출 및 KOSIS 보존, 종가 규칙/관측일·신선도 검사, 일간 수집 완료 대기, 위험 기준선/중복/재시작, BLS/배당 일정 및 메모 제외, 명시적 테스트와 60초 간격, 일일 상한과 실패 후 보류, 데모/관리자 보호, 매니페스트/아이콘 및 캐시 미사용 검사.
+- Python 컴파일 및 모든 앱 JS 문법 검사 통과.
+- `python -m tools.check_notifications_ui`: PC 1440×1100, 모바일 390×844 Chromium에서 알림 화면, 키 저장 후 비노출/다시 열기, 규칙 보존, 키 제거, 데모 차단, 관리자 진입/KOSIS 기본값, 가로 넘침/JS 오류를 FastAPI TestClient 응답 브리지로 검사. 정상적인 로컬 서버는 Python HTTP 클라이언트로 확인했으나 Chromium 직접 접속은 환경 정책으로 차단됨. 서비스 워커 실제 설치, 모바일 OS 홈 화면, HTTPS 인증, 실제 오프라인 전환, Telegram 수신은 미검증. 전체 기존 브라우저 회귀는 이번에는 실행하지 않았고 기존 91개 자동화 회귀는 통과했습니다.
+- 기존 API 설정·DB 스키마의 테이블 보존을 목표로 추가 테이블만 사용. 실 사용자 DB·키, 실제 외부 API, PostgreSQL 및 운영 배포는 확인 필요. 버그/알림 누락 없음이나 투자 성과를 보장하지 않습니다.
+
+---
+
+# Macro Invest 4.5.1 — KOSIS 연동 검증
 
 - 기반: 4.5.0 ZIP 및 Git tree `05a3780f92b97f013882a5e2cb550a1a959bdaa3`.
 - `python -m pytest -q`: 91 passed (79 회귀 + 12 신규). 임시 설정·SQLite·HTTPX MockTransport: 슬래시/플러스/패딩 포함 인증키 저장과 비노출, 빈 통계표 기본값과 기존 사용자 지정값 보존, 표준 JSON 파라미터/월별 조회, 두 지표 구분, 오류 코드와 비정상 JSON·다른 지표 응답 차단, 관리자 연결 진단/API 인증을 검증.

@@ -7,3 +7,5 @@ python-dotenv>=1.0,<2
 tzdata>=2024.1
 
 cryptography>=44,<50
+
+exchange-calendars>=4.13,<5

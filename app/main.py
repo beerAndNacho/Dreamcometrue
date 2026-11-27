@@ -20,44 +20,65 @@ from .admin import router as admin_router, require_write, require_admin, auth
 from .settings import password
 from .hosting import HOSTED, HOSTS
 from .portfolio import router as portfolio_router
+from .journal import router as journal_router
+from .vintage_backtest import router as vintage_router
 from .kr_market import router as kr_market_router, market_state, MARKETS
 from .kr_insights import router as kr_insights_router
 from .kr_pressure import router as kr_pressure_router
 from .kr_value import router as kr_value_router
 from .release_calendar import router as calendar_router
 from .intelligence import router as intelligence_router, interrupt_ai
+from .notifications import router as notification_router, schedule_alerts, interrupt_alerts
 from .middleware import BodyLimitMiddleware
 from .dashboard_data import build_dashboard, iso
 from .briefing import build_briefing, save_daily_snapshot
 from .guide import explain
+from .operations import router as operations_router, schedule_backups, instance_lock, VERSION
+from .global_market import router as global_router
+from .decision_lab import router as decision_router
 from typing import Literal
 
 @asynccontextmanager
 async def lifespan(app):
-    init()
-    password()
-    interrupt_ai()
-    with Session.begin() as db:
-        db.execute(update(Run).where(Run.state=='running').values(state='interrupted'))
-    if DEMO:
-        seed()
-        save_daily_snapshot(today(), build_dashboard(today()))
-    stop=threading.Event(); t=threading.Thread(target=schedule,args=(stop,),daemon=True); t.start()
-    yield
-    stop.set()
-    t.join(timeout=2)
+    with instance_lock():
+        init()
+        password()
+        interrupt_ai()
+        interrupt_alerts()
+        with Session.begin() as db:
+            db.execute(update(Run).where(Run.state=='running').values(state='interrupted'))
+        if DEMO:
+            seed()
+            save_daily_snapshot(today(), build_dashboard(today()))
+        stop=threading.Event(); t=threading.Thread(target=schedule,args=(stop,),daemon=True); t.start()
+        alerts=threading.Thread(target=schedule_alerts,args=(stop,),daemon=True); alerts.start()
+        backups=threading.Thread(target=schedule_backups,args=(stop,),daemon=True); backups.start()
+        try:
+            yield
+        finally:
+            stop.set()
+            t.join(timeout=2)
+            alerts.join(timeout=2)
+            backups.join(timeout=125)
 
-app=FastAPI(title='Macro Invest',version='4.5.2',lifespan=lifespan)
+
+app=FastAPI(title='Macro Invest',version=VERSION,lifespan=lifespan)
 STATIC=Path(__file__).parent/'static'
 app.add_middleware(TrustedHostMiddleware,allowed_hosts=HOSTS, www_redirect=False)
 app.include_router(admin_router)
 app.include_router(portfolio_router)
+app.include_router(journal_router)
+app.include_router(vintage_router)
 app.include_router(kr_market_router)
 app.include_router(kr_insights_router)
 app.include_router(kr_pressure_router)
 app.include_router(kr_value_router)
 app.include_router(calendar_router)
 app.include_router(intelligence_router)
+app.include_router(notification_router)
+app.include_router(operations_router)
+app.include_router(global_router)
+app.include_router(decision_router)
 app.add_middleware(BodyLimitMiddleware, max_bytes=1_000_000)
 app.mount('/static',StaticFiles(directory=STATIC),name='static')
 
@@ -99,6 +120,12 @@ def healthz():
 
 @app.get('/')
 def index(): return FileResponse(STATIC/'index.html')
+
+@app.get('/manifest.webmanifest',include_in_schema=False)
+def manifest(): return FileResponse(STATIC/'manifest.webmanifest',media_type='application/manifest+json',headers={'Cache-Control':'no-store'})
+
+@app.get('/sw.js',include_in_schema=False)
+def service_worker(): return FileResponse(STATIC/'sw.js',media_type='application/javascript',headers={'Cache-Control':'no-store'})
 
 @app.get('/api/dashboard')
 def dashboard():
