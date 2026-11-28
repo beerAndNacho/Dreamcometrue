@@ -250,3 +250,26 @@ body.terminal-chart-open{overflow:hidden}
 :root[data-theme=light] .pressure-chart{background:var(--surface)}
 #orbitChart svg{min-width:0}
 @media(max-width:760px){.workspace .panel{overflow-wrap:anywhere}.terminal-ready.terminal-menu-open .workspace{pointer-events:none}.terminal-ready.terminal-menu-open .sidebar{overscroll-behavior:contain}.terminal-ready .sidebar .brand small{display:block}#orbitChart svg{max-height:none}.formgrid>*{min-width:0}.table-wrap{min-width:0}}
+
+/* 5.0.2: actual screenshot review revealed a flex shrink-to-content chart. */
+.chart.macro-chart-host{display:block;min-height:0}
+.macro-chart-root{width:100%;max-width:1100px;margin-inline:auto;min-width:0}
+.macro-time-chart{display:block;width:100%;height:auto;min-height:0!important;max-height:none!important;overflow:visible}
+.macro-chart-controls{width:100%}
+.macro-readout{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;padding:9px 11px;border:1px solid var(--edge);border-radius:8px;background:var(--panel)}
+.macro-readout-date{flex-basis:100%;font-size:12px;color:var(--muted)}
+.macro-readout>span{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0;color:var(--muted);font-size:12px}
+.macro-readout>span b{color:var(--text);font-weight:650;font-variant-numeric:tabular-nums}
+.macro-readout>span i{width:8px;height:8px;border-radius:50%;background:var(--series-color);flex:none}
+#detailPanel .macro-chart-host{margin-bottom:12px}
+#detailPanel .guide-inline{margin-top:8px}
+#detailPanel .history-context-wrap{margin-top:12px}
+#detailPanel .history-context-wrap .check>span:first-child{flex-shrink:0}
+@media(max-width:760px){
+ .macro-readout>span{flex-basis:100%;justify-content:flex-start}
+ .macro-readout>span b{margin-left:auto}
+ #detailPanel .history-context-wrap .check{display:grid;grid-template-columns:1fr;gap:3px}
+ #detailPanel .history-context-wrap .check>span:first-child{white-space:nowrap}
+ #detailPanel .history-context-wrap .check>span:last-child{color:var(--text)}
+ #reportPanel .terminal-report-actions{margin-top:8px}
+}
