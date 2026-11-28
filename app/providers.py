@@ -74,6 +74,14 @@ def ecos(client,s,start,end,cfg=None):
             # Check human-readable identity when ECOS includes it. Fail closed on a mislabeled rate.
             expected={'kr10y':('국고채','10년'),'kr3y':('국고채','3년'),'kospi':('코스피',),'kosdaq':('코스닥',)}.get(s.id)
             name=str(row.get('ITEM_NAME1') or '').lower().replace(' ','').replace('(','').replace(')','')
+            if s.id=='kr_cpi':
+                # The total CPI index only; do not accept partial item/rate series.
+                stat=str(row.get('STAT_NAME') or '').replace(' ','')
+                if str(row.get('STAT_CODE'))!=s.code or str(row.get('ITEM_CODE1'))!=s.item or not name.startswith('총지수') or '소비자물가' not in stat:
+                    raise DataError('ECOS 소비자물가 총지수 확인 실패')
+                unit=str(row.get('UNIT_NAME') or '')
+                if '%' in unit or '증감' in name:
+                    raise DataError('ECOS 소비자물가 지수 단위 확인 실패')
             if expected and name and not all(k in name for k in expected):
                 if not (s.id in ('kospi','kosdaq') and s.id in name):
                     raise DataError('ECOS 통계 항목명 불일치: 공식 통계표 확인 필요')
@@ -83,7 +91,8 @@ def ecos(client,s,start,end,cfg=None):
     return points(rows,'TIME','DATA_VALUE')
 
 def oecd(client,start,end):
-    url='https://sdmx.oecd.org/public/rest/data/OECD.SDD.STES,DSD_STES@DF_CLI/USA+KOR+GBR.M.LI...AA...H'
+    areas='+'.join(s.code for s in SERIES if s.provider=='OECD')
+    url='https://sdmx.oecd.org/public/rest/data/OECD.SDD.STES,DSD_STES@DF_CLI/'+areas+'.M.LI...AA...H'
     r=get(client,url,{'startPeriod':start.strftime('%Y-%m'),'endPeriod':end.strftime('%Y-%m'),'dimensionAtObservation':'AllDimensions','format':'csvfile'})
     rows=list(csv.DictReader(io.StringIO(r.text.lstrip('\ufeff'))))
     if not rows or not {'REF_AREA','TIME_PERIOD','OBS_VALUE'}.issubset(rows[0]): raise DataError('OECD CSV 응답 형식 오류')

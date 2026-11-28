@@ -8,11 +8,11 @@ from urllib.parse import parse_qsl, urlencode
 from cryptography.fernet import Fernet, InvalidToken
 from .db import DEMO
 
-KEYS=('FRED_API_KEY','ECOS_API_KEY','KOSIS_API_KEY','KIS_APP_KEY','KIS_APP_SECRET','DART_API_KEY','OPENAI_API_KEY','GEMINI_API_KEY','ANTHROPIC_API_KEY')
+KEYS=('FRED_API_KEY','ECOS_API_KEY','KOSIS_API_KEY','KIS_APP_KEY','KIS_APP_SECRET','DART_API_KEY','CUSTOMS_API_KEY','OPENAI_API_KEY','GEMINI_API_KEY','ANTHROPIC_API_KEY')
 QUERIES=('KOSIS_LEADING_QUERY','KOSIS_COINCIDENT_QUERY')
 # Candidate presets from public query examples. The provider verifies the returned series identity.
 KOSIS_PRESETS={k:f'orgId=101&tblId=DT_1C8015&itmId=T1&objL1={code}' for k,code in zip(QUERIES,('A03','B03'))}
-DEFAULTS={**dict.fromkeys(KEYS+QUERIES,''),'HISTORY_START':'1995-01-01','AUTO_COLLECT':'0','COLLECT_HOUR_KST':'8','AI_PROVIDER':'off','OPENAI_MODEL':'','GEMINI_MODEL':'','ANTHROPIC_MODEL':'','AI_DAILY_LIMIT':'3','AI_MAX_OUTPUT':'1200','BLS_AUTO_REFRESH':'0'}
+DEFAULTS={**dict.fromkeys(KEYS+QUERIES,''),'HISTORY_START':'1995-01-01','AUTO_COLLECT':'0','COLLECT_HOUR_KST':'8','AI_PROVIDER':'off','OPENAI_MODEL':'','GEMINI_MODEL':'','ANTHROPIC_MODEL':'','AI_DAILY_LIMIT':'3','AI_MAX_OUTPUT':'1200','BLS_AUTO_REFRESH':'0','AI_REPORT_AUTO_SAVE':'1','AI_REPORT_AUTO_RUN':'0'}
 GUARD=threading.RLock()
 
 def directory():
@@ -83,13 +83,16 @@ def save_settings(updates):
             if k not in DEFAULTS: raise ValueError('허용되지 않은 설정 항목')
             if not isinstance(v,str): raise ValueError('설정값은 문자열이어야 합니다.')
             v=v.strip()
-            if k in KEYS and v and (len(v)>512 or not re.fullmatch(r'[A-Za-z0-9_+=./-]+',v) or (k not in ('KIS_APP_KEY','KIS_APP_SECRET','KOSIS_API_KEY') and '/' in v)):
+            if k=='CUSTOMS_API_KEY':
+                from .customs import normalized_key
+                v=normalized_key(v)
+            if k in KEYS and v and (len(v)>512 or not re.fullmatch(r'[A-Za-z0-9_+=./-]+',v) or (k not in ('KIS_APP_KEY','KIS_APP_SECRET','KOSIS_API_KEY','CUSTOMS_API_KEY') and '/' in v)):
                 raise ValueError('API 키 형식을 확인하세요.')
             if k in QUERIES: v=effective_kosis_query(k,v)
             if k=='HISTORY_START':
                 d=date.fromisoformat(v)
                 if not date(1900,1,1)<=d<=date.today(): raise ValueError('조회 시작일 범위를 확인하세요.')
-            if k in ('AUTO_COLLECT','BLS_AUTO_REFRESH') and v not in ('0','1'): raise ValueError('자동수집 설정값 오류')
+            if k in ('AUTO_COLLECT','BLS_AUTO_REFRESH','AI_REPORT_AUTO_SAVE','AI_REPORT_AUTO_RUN') and v not in ('0','1'): raise ValueError('자동수집 설정값 오류')
             if k=='COLLECT_HOUR_KST' and (not v.isdigit() or not 0<=int(v)<=23): raise ValueError('수집 시각은 0~23시')
             if k=='AI_PROVIDER' and v not in ('off','openai','gemini','anthropic'): raise ValueError('AI 제공처 설정 오류')
             if k in ('OPENAI_MODEL','GEMINI_MODEL','ANTHROPIC_MODEL') and v and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}',v): raise ValueError('모델 ID 형식 오류')

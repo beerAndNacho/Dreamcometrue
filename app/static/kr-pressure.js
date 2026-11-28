@@ -9,7 +9,11 @@ let busy=false, ready=false, snapshot=null;
 function status(id,msg,error=false){$(id).textContent=msg;$(id).classList.toggle('error-banner',error)}
 function query(){return new URLSearchParams({market:$('pressureMarket').value,code:$('pressureStock').value,period:$('pressurePeriod').value})}
 async function api(url,opts={}){let r=await fetch(url,opts);let j;try{j=await r.json()}catch{throw Error(`HTTP ${r.status}`)}if(!r.ok)throw Error(typeof j.detail==='string'?j.detail:`HTTP ${r.status}`);return j}
-function graph(rows,field,color){let vals=rows.filter(r=>Number.isFinite(r[field]));if(vals.length<2)return '<p class="note">차트 관측값 부족</p>';let values=vals.map(r=>r[field]),lo=Math.min(...values),hi=Math.max(...values);if(lo===hi){lo-=1;hi+=1}if(lo<0&&hi<0)hi=0;if(lo>0&&hi>0&&field!=='balance_qty')lo=0;let x=i=>12+i*296/(vals.length-1),y=v=>10+(hi-v)*94/(hi-lo),points=vals.map((r,i)=>`${x(i)},${y(r[field])}`).join(' ');return `<svg class="pressure-chart" viewBox="0 0 320 125" role="img" aria-label="${esc(field)} 최근 ${vals.length}개 관측 추이">${lo<=0&&hi>=0?`<line class="pressure-axis" x1="12" x2="308" y1="${y(0)}" y2="${y(0)}"/>`:''}<polyline class="pressure-trace" style="stroke:${color}" points="${points}"/><circle cx="${x(vals.length-1)}" cy="${y(values.at(-1))}" r="3" fill="${color}"/></svg><div class="pressure-small muted">${esc(vals[0].date)} ~ ${esc(vals.at(-1).date)} · 최저 ${fmt(Math.min(...values))} / 최고 ${fmt(Math.max(...values))}</div>`}
+function graph(rows,field,color){
+ const valid=rows.filter(r=>Number.isFinite(r[field]));
+ if(!valid.length)return '<p class="note">차트 관측값 부족</p>';
+ return '<div class="pressure-graph-host"></div><div class="pressure-small muted">'+esc(valid[0].date)+' ~ '+esc(valid.at(-1).date)+' · 최저 '+fmt(Math.min(...valid.map(r=>r[field])))+' / 최고 '+fmt(Math.max(...valid.map(r=>r[field])))+'</div>';
+}
 function render(kind, data, period){const el=$(kind+'Data');if(!data){el.textContent='관측값 없음';return}const keys=Object.keys(fields[kind]);const latest=data.latest,summary=data.summary;
 const mark=data.demo?'가상 자료':data.origin==='manual_csv'?'사용자 등록 CSV (출처 미검증)':'KIS 일별 API';
 const quality=data.stale?'누락 / 오래됨 / 오류 — 기간 요약 보류':'관측일 조건 충족 (거래일 완전성 별도 확인)';
@@ -19,6 +23,7 @@ if(latest){result+=`<div class="pressure-metrics">${keys.map(k=>`<div class="met
 if(summary){result+=`<h4>최근 ${period}개 관측일 요약</h4><div class="pressure-metrics">${Object.entries(summary).map(([k,v])=>`<div class="metric"><small>${esc(fields[kind][k]||'기간 처음 대비 잔고 증감')}${k==='balance_qty'||k==='balance_pct'?' (마지막)':k==='short_pct'?' (가중 비중)':k==='balance_change'?'':' (합계)'}</small><strong>${fmt(v)}</strong></div>`).join('')}</div>`;}else result+='<p class="note">유효한 기간 요약 없음. 수집하거나 기간을 줄이세요.</p>';
 result+=graph(data.rows,primary[kind],colors[kind]);
 if(data.rows.length){result+=`<details class="pressure-history"><summary>일별 관측값 ${data.rows.length}개 보기</summary><div class="table-wrap"><table><thead><tr><th>관측일</th>${keys.map(k=>`<th>${esc(fields[kind][k])}</th>`).join('')}</tr></thead><tbody>${[...data.rows].reverse().map(r=>`<tr><td>${esc(r.date)}</td>${keys.map(k=>`<td>${fmt(r[k])}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>`;}el.innerHTML=result;
+const host=el.querySelector('.pressure-graph-host');if(host){const field=primary[kind],unit=field.endsWith('_pct')?'%':field.endsWith('_contracts')?'계약':'주';MacroChart.draw(host,[{label:fields[kind][field],points:data.rows.map(r=>({date:r.date,value:r[field]}))}],{maxGap:10*86400000,unit,baseline:field==='balance_qty'?null:0,note:'저장 관측일 기준 · 거래일 완전성은 별도 확인.'})}
 }
 function show(data){snapshot=data;let code=$('pressureStock').value;let list=data.watchlist;$('pressureStock').replaceChildren(new Option('선택 안 함',''),...list.map(x=>new Option(`${x.name} (${x.code})`,x.code)));if(list.some(x=>x.code===code))$('pressureStock').value=code;
 status('pressureStatus',`${data.demo?'가상 데이터 · ':''}${data.asof} KST · ${data.note}${data.busy?' · 다른 수집 진행 중':''}`);

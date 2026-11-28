@@ -8,7 +8,8 @@ from app.db import init,Session,write_series,history,Revision
 from sqlalchemy import select
 
 def test_catalog():
-    assert len(SERIES)==38 and len(BY_ID)==38
+    assert len(SERIES)==103 and len(BY_ID)==len(SERIES)
+    assert len({(s.provider,s.code,s.item) for s in SERIES})==len(SERIES)
 
 def test_parse_missing_and_duplicate():
     assert points([{'t':'202501','v':'100.3'},{'t':'202502','v':'.'}],'t','v')=={date(2025,1,1):100.3}

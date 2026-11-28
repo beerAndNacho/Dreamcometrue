@@ -16,8 +16,8 @@ HEAD={'X-Macro-Admin':'1'}
 def test_report_quality_trend():
     with TestClient(app) as c:
         d=c.get('/api/dashboard').json()
-        assert d['quality']['total']==38
-        assert d['quality']['fresh']+d['quality']['missing']+d['quality']['stale']==38
+        assert d['quality']['total']==len(SERIES)
+        assert d['quality']['fresh']+d['quality']['missing']+d['quality']['stale']==len(SERIES)
         assert len(d['indicators'][0]['trend'])<=30
         assert d['generated_at'] and all(i['age_days'] is not None for i in d['indicators'])
         r=c.get('/api/report'); assert r.status_code==200 and '가상 데이터' in r.text and '코스피' in r.text
@@ -92,12 +92,12 @@ def fake(client,s,start,end,cfg):
     if s.freq=='D': return {end-timedelta(days=i):100+i*.01 for i in range(300) if end-timedelta(days=i)>=start and (end-timedelta(days=i)).weekday()<5}
     return {month_before(end.replace(day=1),i):100+i*.01 for i in range(1,25)}
 def oecd(client,start,end):return {s.id:fake(client,s,start,end,{}) for s in SERIES if s.provider=='OECD'}
-with patch.object(c.p,'fred',fake),patch.object(c.p,'ecos',fake),patch.object(c.p,'kosis',fake),patch.object(c.p,'oecd',oecd),patch.object(c.time,'sleep',lambda *_:None):
-    assert c.collect()['ok']==38
+with patch.object(c.p,'fred',fake),patch.object(c.p,'ecos',fake),patch.object(c.p,'kosis',fake),patch.object(c.p,'oecd',oecd),patch.object(c.customs,'fetch',fake),patch.object(c.time,'sleep',lambda *_:None):
+    assert c.collect()['ok']==len(SERIES)
     assert starts['sp500']==date(2020,1,1)
-    assert c.collect(full=False)['ok']==38
+    assert c.collect(full=False)['ok']==len(SERIES)
     assert starts['sp500']>=c.today()-timedelta(days=46)
-    assert len(dashboard()['indicators'])==38
+    assert len(dashboard()['indicators'])==len(SERIES)
     with Session() as db: assert db.get(SeriesSource,'kr_leading') and len(history(db,'sp500'))>200
     save_settings({'KOSIS_LEADING_QUERY':'orgId=101&tblId=OTHER&itmId=A&objL1=B'})
     d=dashboard();assert not next(x for x in d['indicators'] if x['id']=='kr_leading')['fresh']
@@ -106,7 +106,7 @@ with patch.object(c.p,'fred',fake),patch.object(c.p,'ecos',fake),patch.object(c.
         auth=('admin','test-admin-password-1234');h={'X-Macro-Admin':'1'}
         assert client.post('/api/admin/reset-kosis/kr_leading',auth=auth,headers=h).status_code==400
         assert client.post('/api/admin/reset-kosis/kr_leading?confirm=true',auth=auth,headers=h).status_code==200
-    assert c.collect()['ok']==38
+    assert c.collect()['ok']==len(SERIES)
     with Session() as db: assert db.get(SeriesSource,'kr_leading')
 '''
     subprocess.run([sys.executable,'-c',code],env=env,check=True,timeout=50)

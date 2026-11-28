@@ -16,12 +16,14 @@ import os
 base='https://example.onrender.com'
 auth=('admin',os.environ['ADMIN_PASSWORD'])
 with TestClient(app,base_url=base) as c:
-    for path in ('/', '/admin','/api/dashboard','/static/app.js','/docs','/openapi.json'):
+    for path in ('/', '/admin','/api/dashboard','/static/app.js','/docs','/openapi.json','/manual','/manual/download','/static/manual.js','/static/manual.css'):
         assert c.get(path).status_code==401, path
     assert c.get('/healthz').status_code==200
     assert c.get('/',auth=auth).status_code==200
     assert c.get('/api/dashboard',auth=auth).status_code==200
     assert c.get('/admin',auth=auth).status_code==200
+    assert c.get('/manual',auth=auth).status_code==200
+    assert c.get('/manual/download',auth=auth).status_code==200
     assert c.get('/static/app.js',auth=auth).headers['Cache-Control']=='no-store'
     assert c.get('/',auth=auth,headers={'Host':'evil.example'}).status_code==400
     h={'X-Macro-Admin':'1','Origin':base}

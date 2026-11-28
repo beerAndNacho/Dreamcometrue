@@ -11,7 +11,7 @@ AUTH=('admin','test-admin-password-1234');HEAD={'X-Macro-Admin':'1'}
 
 @pytest.fixture
 def clean():
-    old=load_settings(); keys=['AI_PROVIDER','OPENAI_API_KEY','OPENAI_MODEL','GEMINI_API_KEY','GEMINI_MODEL','ANTHROPIC_API_KEY','ANTHROPIC_MODEL','AI_DAILY_LIMIT','AI_MAX_OUTPUT','BLS_AUTO_REFRESH']
+    old=load_settings(); keys=['AI_PROVIDER','OPENAI_API_KEY','OPENAI_MODEL','GEMINI_API_KEY','GEMINI_MODEL','ANTHROPIC_API_KEY','ANTHROPIC_MODEL','AI_DAILY_LIMIT','AI_MAX_OUTPUT','BLS_AUTO_REFRESH','AI_REPORT_AUTO_SAVE','AI_REPORT_AUTO_RUN']
     with Session.begin() as db:
         db.execute(delete(a.InsightReport));db.execute(delete(cal.CalendarEntry));db.execute(delete(MarketCache).where(MarketCache.key==cal.CACHE))
     yield
@@ -135,3 +135,70 @@ def test_stock_public_evidence_only(clean):
         d=c.get('/api/intelligence?code=000270',auth=AUTH).json()['report'];assert any(x['id']=='stock_close' for x in d['evidence'])
         _,_,body=a.provider_payload('openai','text-model','key',1000,d);assert 'private memo' not in json.dumps(body,ensure_ascii=False)
         c.delete('/api/kr-market/watch/000270',auth=AUTH,headers=HEAD)
+
+
+def test_external_prompt_no_ai_and_historical(clean, monkeypatch):
+    save_settings({'AI_PROVIDER':'off','OPENAI_API_KEY':'','GEMINI_API_KEY':'','ANTHROPIC_API_KEY':''})
+    monkeypatch.setattr(a,'invoke',lambda *args:pytest.fail('API must not be called'))
+    with TestClient(app) as c:
+        p=c.get('/api/intelligence?period=weekly',auth=AUTH).json()
+        assert p['prompt'] and '가상 자료' in p['prompt']
+        data=json.loads(p['prompt'].split('=== 관측자료 JSON ===\n',1)[1])
+        assert data['period']=='weekly' and data['demo']
+        assert all({'id','value','period','unit','source'}<=e.keys() for e in data['evidence'])
+        assert any(e['id']=='KOSPI_foreign_20' for e in data['evidence'])
+        r=c.post('/api/intelligence/generate',auth=AUTH,headers=HEAD,json={'period':'weekly'}).json()
+        old=r['prompt']
+        orig=a.facts
+        def changed(*args,**kwargs):
+            d=orig(*args,**kwargs)
+            if d['evidence']:d['evidence'][0]['value']=123456789
+            return d
+        monkeypatch.setattr(a,'facts',changed)
+        assert c.get('/api/intelligence?period=weekly',auth=AUTH).json()['prompt']!=old
+        assert c.get('/api/intelligence/history/'+str(r['id']),auth=AUTH).json()['prompt']==old
+        assert c.get('/api/intelligence/history',auth=AUTH).json()['config']['attempts']==0
+        a.LOCK.acquire()
+        try: assert c.get('/api/intelligence',auth=AUTH).json()['prompt'] is None
+        finally: a.LOCK.release()
+
+
+def test_external_prompt_allowlist():
+    d={'asof':'2026-11-27','period':'daily','demo':False,'busy':False,
+       'evidence':[{'id':'x','name':'VIX','value':25,'unit':'pt','period':'2026-11-26','source':'https://fred.stlouisfed.org/',
+                    'change':{'previous':20,'period':'2026-11-25','kind':'관측일 갱신','private':'SECRET'}}],
+       'model':{'score':30,'private':'SECRET','checks':[{'label':'VIX','value':25,'points':15,'rule':'20','private':'SECRET'}]},
+       'calendar':[{'title':'SECRET'}],'portfolio':'SECRET','settings':'SECRET','notes':[{'text':'SECRET'}]}
+    prompt=a.external_prompt(d)
+    assert 'SECRET' not in prompt and '2026-11-26' in prompt and 'https://fred.stlouisfed.org/' in prompt
+    assert a.external_prompt({**d,'busy':True}) is None
+    assert a.external_prompt({**d,'evidence':[]}) is None
+
+
+def test_auto_archive_opt_in_and_no_retry(clean,monkeypatch):
+    with TestClient(app) as c:
+        monkeypatch.setattr(a,'DEMO',False)
+        original=a.facts
+        monkeypatch.setattr(a,'facts',lambda *args,**kw:{**original(*args,**kw),'demo':False})
+        save_settings({'AI_REPORT_AUTO_SAVE':'0','AI_REPORT_AUTO_RUN':'0','AI_PROVIDER':'openai','OPENAI_API_KEY':'fake-key','OPENAI_MODEL':'fake-model'})
+        calls=[]
+        def fail(*args):
+            calls.append(1)
+            return '{bad JSON',12,20
+        monkeypatch.setattr(a,'invoke',fail)
+        a.archive_after_collect()
+        assert not c.get('/api/intelligence/history',auth=AUTH).json()['items']
+        save_settings({'AI_REPORT_AUTO_SAVE':'1'})
+        a.archive_after_collect()
+        h=c.get('/api/intelligence/history',auth=AUTH).json()
+        assert len(h['items'])==1 and h['items'][0]['provider']=='rules' and not calls
+        save_settings({'AI_REPORT_AUTO_RUN':'1'})
+        a.archive_after_collect()
+        a.archive_after_collect()
+        h=c.get('/api/intelligence/history',auth=AUTH).json()
+        assert len(calls)==1 and h['config']['attempts']==1
+        assert any(x['provider']=='rules' and x['state']=='ok' for x in h['items'])
+        assert any(x['provider']=='openai' and x['state']=='error' for x in h['items'])
+        save_settings({'AI_REPORT_AUTO_RUN':'0'})
+        a.archive_after_collect()
+        assert len(calls)==1
