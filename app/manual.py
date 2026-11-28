@@ -92,7 +92,7 @@ def render_manual(source):
         url,label=NAV[n]
         content.append('<section class="panel manual-section" id="section-'+n+'"><div class="manual-section-head"><h2>'+n+'. '+escape(name)+'</h2><a class="button secondary" href="'+escape(url,quote=True)+'">'+escape(label)+'</a></div>'+blocks(body)+'<p class="manual-back"><a href="#manual-top">목차로 돌아가기</a></p></section>')
     return ('<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-        '<title>'+title+'</title><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/manual.css"><link rel="stylesheet" href="/static/terminal.css?v=500"></head>'
+        '<title>'+title+'</title><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/manual.css"><link rel="stylesheet" href="/static/terminal.css?v=502"></head>'
         '<body class="manual-body"><header class="manual-header"><a class="brand" href="/"><span class="logo">M</span><div><strong>Macro Invest</strong><small>USER MANUAL</small></div></a>'
         '<nav aria-label="주요 메뉴"><a href="/">대시보드</a><a href="/admin">관리자</a><a href="/intelligence">투자 분석센터</a><button type="button" class="secondary" data-theme-toggle aria-label="화면 색상 전환">라이트</button></nav></header>'
         '<main class="manual-main" id="manual-top"><div class="manual-hero"><div class="eyebrow">HELP / USER GUIDE</div><h1>'+title+'</h1>'+blocks(intro)
@@ -101,7 +101,7 @@ def render_manual(source):
         '<label for="manual-search">기능 및 문제 검색</label><input id="manual-search" type="search" placeholder="예: AI, 배당, KOSIS" autocomplete="off">'
         '<p class="note" id="manual-status" role="status">전체 17개 항목</p><ol id="manual-toc-list">'+toc+'</ol></aside>'
         '<article id="manual-content">'+''.join(content)+'</article></div>'
-        '<footer>Macro Invest · 공식 원자료 및 운영 환경 검증 필요</footer></main><script src="/static/manual.js" defer></script><script src="/static/terminal.js?v=500" defer></script></body></html>')
+        '<footer>Macro Invest · 공식 원자료 및 운영 환경 검증 필요</footer></main><script src="/static/manual.js" defer></script><script src="/static/terminal.js?v=502" defer></script></body></html>')
 
 @router.get('/manual',include_in_schema=False)
 def manual_page():

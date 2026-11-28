@@ -24,7 +24,7 @@
   const scaledStep=step/scale[0];
   // A 2.5 step, for example, requires one decimal place. Preserve distinct ticks.
   let digits=0;while(digits<10&&Math.abs(scaledStep*10**digits-Math.round(scaledStep*10**digits))>1e-7*Math.max(1,scaledStep*10**digits))digits++;
-  const labels=ticks.map(v=>{const x=v/scale[0];return (Math.abs(x)>0&&Math.abs(x)<1e-9?x.toExponential(2):x.toLocaleString('ko-KR',{maximumFractionDigits:digits}))+scale[1]});
+  const labels=ticks.map(v=>{const x=v/scale[0];return (scaledStep<1e-8&&x!==0?x.toExponential(2):x.toLocaleString('ko-KR',{maximumFractionDigits:digits}))+scale[1]});
   // Extremely small or extremely close values: do not display duplicate labels.
   return {ticks,labels:new Set(labels).size===labels.length?labels:ticks.map(v=>v.toPrecision(10)),step};
  }
@@ -34,7 +34,7 @@
  const dateLabel=(t,mode)=>mode==='year'?String(t):new Date(t).toISOString().slice(0,10);
  const node=(tag,attrs={},content)=>{const e=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,String(v));if(content!=null)e.textContent=content;return e};
  const resolve=e=>typeof e==='string'?document.getElementById(e):e;
- function width(el){const c=getComputedStyle(el);return Math.max(200,Math.min(1100,Math.floor(el.clientWidth-parseFloat(c.paddingLeft||0)-parseFloat(c.paddingRight||0))||300))}
+ function width(el){const c=getComputedStyle(el);return Math.max(120,Math.min(1100,Math.floor(el.clientWidth-parseFloat(c.paddingLeft||0)-parseFloat(c.paddingRight||0))||300))}
  function clear(el){el=resolve(el);if(!el)return;cache.get(el)?.observer?.disconnect();cache.delete(el);el.replaceChildren()}
  function draw(el,input,options={}){
   el=resolve(el);if(!el)return;

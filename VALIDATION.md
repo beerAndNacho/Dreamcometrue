@@ -1,5 +1,13 @@
 # Macro Invest 검증 기록
 
+## 5.0.2 시각 검수 후 추가 검증
+
+- 기반 main 커밋 8f25f5d70be5f12d58ff527d573ff337fef078ff: run 46100994121, Chromium·Python 3.11·3.12 모두 성공. https://github.com/beerAndNacho/Dreamcometrue/actions/runs/46100994121
+- 개발 브랜치 7d6e20b: run 46100853871에서 320/390/768/1440px 브라우저 검사와 차트 계산 검사 성공. 실제 스크린샷 ZIP artifact 15244679446 생성. https://github.com/beerAndNacho/Dreamcometrue/actions/runs/46100853871
+- 5.0.1 캡처 검토에서 확인한 차트 축소 문제를 수정했습니다. 새 테스트는 SVG 표시 너비, 실제 화면 변환 스케일, 축 잘림/중복, 차트 계산을 검사합니다. 신규 CI 및 새 스크린샷 시각 검수 결과는 별도 확인해야 합니다.
+- 실제 공급처 API, 실기기 Safari/Firefox 및 운영 배포는 검증 범위 밖입니다.
+
+
 ## 5.0.1 UI/UX 검증 범위
 
 - 5.0.0 기반 커밋 8812495624aaecaac34e9a30736281900b29dbe6: 130개 pytest 통과 및 기존 JS 문법 검사 성공. https://github.com/beerAndNacho/Dreamcometrue/actions/runs/46027369398
