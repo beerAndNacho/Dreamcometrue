@@ -239,3 +239,14 @@ body.terminal-chart-open{overflow:hidden}
 .macro-chart-controls .chart-values{line-height:1.5;margin-top:5px}
 .macro-chart-controls .note{font-size:12px;margin:6px 0 0}
 @media(max-width:760px){.macro-time-chart .macro-axis{font-size:12px}.macro-chart-controls input[type=range]{min-height:36px}.macro-chart-root{padding:0}}
+
+.workspace,.workspace>.content,.panel,.split>*{min-width:0;max-width:100%}
+.metric>strong,.kpi strong,.terminal-stat strong{overflow-wrap:anywhere}
+.macro-chart-root .chart-values{white-space:normal}
+.value-chart .macro-time-chart,.pressure-graph-host .macro-time-chart{max-height:none!important}
+.value-chart .macro-time-chart text{fill:var(--muted);font-size:12px}
+.value-chart .macro-trace{stroke-width:2}
+:root[data-theme=light] .value-form [type=date]{color-scheme:light}
+:root[data-theme=light] .pressure-chart{background:var(--surface)}
+#orbitChart svg{min-width:0}
+@media(max-width:760px){.workspace .panel{overflow-wrap:anywhere}.terminal-ready.terminal-menu-open .workspace{pointer-events:none}.terminal-ready.terminal-menu-open .sidebar{overscroll-behavior:contain}.terminal-ready .sidebar .brand small{display:block}#orbitChart svg{max-height:none}.formgrid>*{min-width:0}.table-wrap{min-width:0}}
