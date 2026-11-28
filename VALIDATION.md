@@ -1,5 +1,10 @@
 # Macro Invest 검증 기록
 
+## 5.2 개발 검증
+
+- 5.1.0 main c730b7a: Python 3.11/3.12 및 Chromium 전체 검사 성공(run 46104862618). https://github.com/beerAndNacho/Dreamcometrue/actions/runs/46104862618
+- 5.2 추가 단위/API/브라우저 테스트: 공시일·적자 EPS·누락·중복·오래된 자료·수집 중 보류, 권한, AI 내 개인정보 제외, 4개 분야 표시 및 종목 바로가기. 신규 CI 실행 결과 미확인. 실계정 API 및 실제 투자 성과 별도 검증.
+
 ## 5.1.0 검증
 
 - 5.0.2 PR #6 자동 검사 성공 후 main 병합(3af5aad).

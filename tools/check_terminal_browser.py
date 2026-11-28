@@ -101,6 +101,14 @@ def run(base):
                 if path=='/kr-value':
                     check_chart('#annualChart')
                     check_chart('#dividendChart')
+                    expect(page.locator('#companyObservation .domain-card')).to_have_count(4)
+                    page.locator('#companyObservationPanel').scroll_into_view_if_needed()
+                    page.locator('#companyObservationPanel').screenshot(path=str(OUT/f'{width}-company-observation.png'))
+                    page.locator('#companyAiLink').click()
+                    expect(page.locator('#reportMeta')).to_contain_text('000270')
+                    expect(page.locator('#promptCopy')).to_be_enabled()
+                    expect(page.locator('#fact-company_annual_multiple')).to_have_count(1)
+                    go('/kr-value','#annualPanel')
                 if path=='/kr-pressure':
                     check_chart('#programData .pressure-graph-host')
                 snap(path.strip('/'))
