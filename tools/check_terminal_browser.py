@@ -28,11 +28,20 @@ def run(base):
             def check_layout(label):
                 overflow=page.evaluate('''() => ({width:innerWidth,scroll:document.documentElement.scrollWidth})''')
                 assert overflow['scroll']<=overflow['width']+2,(width,label,overflow)
+            def check_chart(selector):
+                chart=page.locator(selector+' .macro-time-chart')
+                chart.wait_for()
+                page.wait_for_function('''sel=>{const el=document.querySelector(sel),svg=el?.querySelector('.macro-time-chart');if(!svg)return false;const css=getComputedStyle(el),available=Math.min(1100,el.clientWidth-parseFloat(css.paddingLeft)-parseFloat(css.paddingRight));return svg.getBoundingClientRect().width>=available*.92}''',arg=selector)
+                stats=chart.evaluate('''svg=>({scale:svg.getScreenCTM().a,axis:[...svg.querySelectorAll('.macro-y-axis')].map(n=>n.textContent),bounds:[...svg.querySelectorAll('.macro-axis')].map(n=>{const b=n.getBoundingClientRect(),s=svg.getBoundingClientRect();return b.left>=s.left-2&&b.right<=s.right+2&&b.top>=s.top-2&&b.bottom<=s.bottom+2})})''')
+                assert stats['scale']>=.90,(width,selector,stats)
+                assert all(stats['bounds']),(width,selector,'axis label clipped',stats)
+                assert len(set(stats['axis']))==len(stats['axis']),(width,selector,'duplicate ticks')
             def snap(name):
                 page.screenshot(path=str(OUT/f'{width}-{name}.png'))
             go('/','#cliChart .macro-time-chart')
             expect(page.locator('#qualitySummary')).to_contain_text('103')
             check_layout('dashboard-dark')
+            check_chart('#cliChart')
             snap('dashboard-dark')
             page.locator('#cliChart').scroll_into_view_if_needed()
             page.locator('#cliChart').screenshot(path=str(OUT/f'{width}-cli.png'))
@@ -40,6 +49,7 @@ def run(base):
             page.locator('#indicators [data-series]').first.click()
             page.locator('#detailChart .macro-time-chart').wait_for()
             expect(page.locator('#detailChart .chart-values')).not_to_be_empty()
+            check_chart('#detailChart')
             page.locator('#detailChart input[type=range]').fill('0')
             page.locator('#detailPanel').screenshot(path=str(OUT/f'{width}-detail.png'))
             if width<=760:
@@ -55,6 +65,7 @@ def run(base):
             snap('dashboard-light')
             go('/kr-market','#flowChart .macro-time-chart')
             check_layout('market')
+            check_chart('#flowChart')
             page.locator('#chartMode').select_option('cum')
             expect(page.locator('#flowChart .chart-values')).not_to_be_empty()
             page.locator('#flow').screenshot(path=str(OUT/f'{width}-flow.png'))
@@ -62,6 +73,7 @@ def run(base):
             expect(page.locator('#promptCopy')).to_be_enabled()
             check_layout('report')
             snap('report')
+            page.locator('.terminal-report-actions').screenshot(path=str(OUT/f'{width}-report-actions.png'))
             page.locator('[data-intel-view=calendar]').click()
             expect(page.locator('#calendarPanel')).to_be_visible()
             expect(page.locator('#reportPanel')).to_be_hidden()
@@ -79,6 +91,11 @@ def run(base):
             for path,sel in [('/kr-insights','#terminal-sidebar'),('/kr-pressure','#programPanel'),('/kr-value','#annualPanel'),('/admin','#adminStats'),('/manual','#manual-search')]:
                 go(path,None if path=='/kr-insights' else sel)
                 check_layout(path)
+                if path=='/kr-value':
+                    check_chart('#annualChart')
+                    check_chart('#dividendChart')
+                if path=='/kr-pressure':
+                    check_chart('#programData .pressure-graph-host')
                 snap(path.strip('/'))
             assert not errors,(width,errors)
             print(f'{width}px browser smoke passed',flush=True)
