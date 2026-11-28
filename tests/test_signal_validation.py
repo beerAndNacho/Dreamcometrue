@@ -38,7 +38,9 @@ def test_endpoint_and_dashboard():
     with TestClient(app) as c:
         assert c.get('/api/diagnosis/validation?horizon=7').status_code==422
         r=c.get('/api/diagnosis/validation?horizon=90').json()
-        assert r['demo'] and r['horizon_days']==90 and len(r['domains'])==7
+        assert r['demo'] and r['horizon_days']==90 and len(r['domains'])==7 and r['lookback_days']==3650
+        assert c.get('/api/diagnosis/validation?days=3651').status_code==422
+        assert c.get('/api/diagnosis/validation?days=120').json()['lookback_days']==120
         d=c.get('/api/dashboard').json()
         assert len(d['semiconductor']['groups'])==5
         assert len(d['diagnostics'])==5

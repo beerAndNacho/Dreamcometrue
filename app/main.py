@@ -49,7 +49,7 @@ async def lifespan(app):
     stop.set()
     t.join(timeout=2)
 
-app=FastAPI(title='Macro Invest',version='5.0.2',lifespan=lifespan)
+app=FastAPI(title='Macro Invest',version='5.1.0',lifespan=lifespan)
 STATIC=Path(__file__).parent/'static'
 app.add_middleware(TrustedHostMiddleware,allowed_hosts=HOSTS, www_redirect=False)
 app.include_router(admin_router)
@@ -110,7 +110,7 @@ def dashboard():
     return d
 
 @app.get('/api/diagnosis/validation')
-def validate_signals(horizon:int=Query(30),days:int=Query(730,ge=120,le=730)):
+def validate_signals(horizon:int=Query(30),days:int=Query(3650,ge=120,le=3650)):
     if horizon not in (30,90):raise HTTPException(422,'30 또는 90일만 지원')
     return signal_validation(today(),DEMO,horizon,days)
 

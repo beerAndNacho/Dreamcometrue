@@ -91,7 +91,7 @@ def evaluate(rows,asof,demo,horizon=30):
         result.append({'id':key,'name':label,'target':target,'signals':signals,'hold':hold,'n':len(samples),'pending':pending,'missing':missing,'overlap_excluded':overlap,'stats':stats,'samples':samples[-20:]})
     return {'version':VERSION,'demo':demo,'asof':str(asof),'horizon_days':horizon,'snapshot_count':len(rows),'first_snapshot':rows[0]['asof'] if rows else None,'last_snapshot':rows[-1]['asof'] if rows else None,'min_group_sample':MIN_SAMPLE,'domains':result,'note':'실제 저장 스냅샷만 평가. 신호일 다음 관측일부터 저장된 가격지수 비교; 30/90 달력일 및 최대 10일 저장 허용. 분야별 평가 구간 중복 제외. 그룹 10건 미만 통계 보류. 배당·환율·비용 미반영, 거래 수익률·검증된 예측력·하락확률 아님. 과거 신호 재생성 금지.'}
 
-def validation(asof,demo,horizon=30,days=730):
+def validation(asof,demo,horizon=30,days=3650):
     with Session() as db:
         entries=db.scalars(select(DailySnapshot).where(DailySnapshot.day>=asof-timedelta(days=days),DailySnapshot.day<=asof).order_by(DailySnapshot.day)).all()
         rows=[]
@@ -99,4 +99,4 @@ def validation(asof,demo,horizon=30,days=730):
             try:s=json.loads(entry.payload)
             except (ValueError,TypeError):continue
             if isinstance(s,dict) and s.get('asof')==str(entry.day):rows.append(s)
-    return evaluate(rows,asof,demo,horizon)
+    return dict(evaluate(rows,asof,demo,horizon),lookback_days=days)
