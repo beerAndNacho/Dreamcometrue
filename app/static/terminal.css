@@ -216,3 +216,26 @@ body.terminal-chart-open{overflow:hidden}
 @media(max-width:350px){.terminal-stat{padding:10px}.terminal-stat strong{font-size:17px}.terminal-shortcuts{grid-template-columns:1fr}.terminal-tabs{font-size:11px}.terminal-tabs a{padding:7px 4px}.formgrid{grid-template-columns:minmax(0,1fr)}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 @media print{.terminal-bottom,.terminal-theme,[data-theme-toggle]{display:none!important}.manual-body{color:#111!important;background:#fff!important}.manual-section,.manual-section[hidden]{background:#fff!important;border:0!important;color:#111!important}.manual-section h2,.manual-section h3,.manual-body a,.manual-section code{color:#111!important}}
+
+/* Responsive SVG: no fixed 800px canvas scaled to mobile. */
+:root{--series0:#57c9be;--series1:#80a5ff;--series2:#f5b960;--series3:#d0a3ff}
+:root[data-theme=light]{--series0:#176c60;--series1:#315fab;--series2:#98601b;--series3:#7444a1}
+.macro-chart-root{min-width:0;max-width:1100px;margin-inline:auto}
+.macro-time-chart{display:block;width:100%;height:auto;max-height:none!important;overflow:visible;font-size:12px}
+.macro-time-chart .macro-axis{font-size:12px;fill:var(--muted)}
+.macro-grid{stroke:var(--edge);stroke-width:1}
+.macro-baseline,.macro-cursor{stroke:var(--muted);stroke-dasharray:4 4;stroke-width:1;vector-effect:non-scaling-stroke}
+.macro-tone-0{--series-color:var(--series0)}.macro-tone-1{--series-color:var(--series1)}.macro-tone-2{--series-color:var(--series2)}.macro-tone-3{--series-color:var(--series3)}
+#flowChart .macro-tone-0,#stockChart .macro-tone-0{--series-color:var(--series1)}
+#flowChart .macro-tone-1{--series-color:var(--series0)}
+.macro-trace{stroke:var(--series-color);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.macro-dot{fill:var(--series-color)}
+.macro-chart-legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:3px 0 8px;font-size:12px;color:var(--muted)}
+.macro-chart-legend span{display:flex;gap:6px;align-items:center}
+.macro-chart-legend i{width:10px;height:10px;background:var(--series-color);border-radius:2px;flex:none}
+.macro-chart-controls{min-width:0;overflow-wrap:anywhere}
+.macro-chart-controls label{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.macro-chart-controls input[type=range]{flex:1;min-width:90px;max-width:100%}
+.macro-chart-controls .chart-values{line-height:1.5;margin-top:5px}
+.macro-chart-controls .note{font-size:12px;margin:6px 0 0}
+@media(max-width:760px){.macro-time-chart .macro-axis{font-size:12px}.macro-chart-controls input[type=range]{min-height:36px}.macro-chart-root{padding:0}}
