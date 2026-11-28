@@ -275,3 +275,5 @@ body.terminal-chart-open{overflow:hidden}
 }
 
 .domain-card{border:1px solid var(--edge);border-radius:9px;margin:8px 0;padding:12px;background:var(--surface)}.domain-card summary{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;cursor:pointer}.domain-card summary span{font-size:12px;color:var(--muted)}.domain-card .check{overflow-wrap:anywhere}
+
+#signalValidationPanel .domain-card .table-wrap{margin-top:10px}#semiconductorPanel .check small{overflow-wrap:anywhere}#validationResults .domain-card summary span{max-width:100%;overflow-wrap:anywhere}

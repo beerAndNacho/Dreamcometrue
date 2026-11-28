@@ -124,6 +124,12 @@ def _facts(period,code,busy):
                     val=x.get('values',x).get(k)
                     if val is not None and isinstance(val,(int,float)) and math.isfinite(val):
                         records.append(evidence_entry('stock_'+k,code+' '+label,val,unit,yr,kv.SOURCE+rec if rec else 'https://opendart.fss.or.kr/'))
+        ratio=d['semiconductor']['ratio']
+        if ratio['value'] is not None:
+            entry=evidence_entry(ratio['id'],ratio['name'],ratio['value'],ratio['unit'],ratio['period'],ratio['sources'][0])
+            entry['sources']=ratio['sources'];entry['components']=ratio['components'];entry['note']=ratio['note']+' · '+ratio['previous_period']+' '+str(ratio['previous_ratio'])+' → '+ratio['period']+' '+str(ratio['current_ratio'])
+            records.append(entry)
+        else:missing.append(ratio['name'])
         for domain in d['market_diagnosis']['domains']:
             if domain['state']=='판단 보류':missing.append(domain['name']+' 분야 진단 일부 근거 부족');continue
             checks=domain['checks']

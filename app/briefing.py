@@ -11,7 +11,8 @@ def compact(d):
     return {'demo':d['demo'],'asof':d['asof'],'generated_at':d['generated_at'],
             'indicators':{x['id']:{k:x.get(k) for k in ('value','period','fresh','source_identity')} for x in d['indicators']},
             'model':{k:d['model'].get(k) for k in ('score','allocation')},
-            'phases':{k:v['phase'] for k,v in d['cycles'].items()}}
+            'phases':{k:v['phase'] for k,v in d['cycles'].items()},
+            'market_diagnosis':d.get('market_diagnosis')}
 
 def save_daily_snapshot(day,d):
     if d['busy'] or str(day)!=d['asof']: return

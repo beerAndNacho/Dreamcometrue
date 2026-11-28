@@ -31,6 +31,7 @@ from .dashboard_data import build_dashboard, iso
 from .briefing import build_briefing, save_daily_snapshot
 from .guide import explain
 from .manual import router as manual_router
+from .signal_validation import validation as signal_validation
 from typing import Literal
 
 @asynccontextmanager
@@ -107,6 +108,11 @@ def dashboard():
     d=build_dashboard(today(),busy=LOCK.locked())
     d['briefing']=build_briefing(d)
     return d
+
+@app.get('/api/diagnosis/validation')
+def validate_signals(horizon:int=Query(30),days:int=Query(730,ge=120,le=730)):
+    if horizon not in (30,90):raise HTTPException(422,'30 또는 90일만 지원')
+    return signal_validation(today(),DEMO,horizon,days)
 
 @app.get('/api/guide')
 def guide():

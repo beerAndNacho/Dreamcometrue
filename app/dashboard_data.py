@@ -7,6 +7,7 @@ from .analysis import transform, fresh, cycle_fresh, risk
 from .macro_context import history_context, diagnostics, READ_LIMIT
 from .settings import load_settings, query_fingerprint
 from .market_diagnosis import diagnosis, quality as provider_quality
+from .sector_diagnosis import semiconductor
 
 def iso(v): return v.isoformat()+'Z' if v else None
 
@@ -35,5 +36,5 @@ def build_dashboard(asof, busy=False):
     model=risk(usable,asof,cycles['cli_us']['phase'])
     if busy:
         model={'score':None,'allocation':None,'missing':['수집 진행 중: 완료 후 다시 평가'],'checks':[]}
-    return {'demo':DEMO,'asof':str(asof),'generated_at':datetime.now(timezone.utc).isoformat(), 'quality':{'fresh':sum(x['fresh'] for x in output),'total':len(output),'stale':sum(x['value'] is not None and not x['fresh'] for x in output),'missing':sum(x['value'] is None for x in output)},'provider_quality':provider_quality(output,busy),'market_diagnosis':diagnosis(output,busy),'indicators':output,'cycles':cycles,'model':model,'diagnostics':diagnostics(usable,asof,busy),'busy':busy,'last_run':{'state':last_run.state,'started':iso(last_run.started),'finished':iso(last_run.finished)} if last_run else None}
+    return {'demo':DEMO,'asof':str(asof),'generated_at':datetime.now(timezone.utc).isoformat(), 'quality':{'fresh':sum(x['fresh'] for x in output),'total':len(output),'stale':sum(x['value'] is not None and not x['fresh'] for x in output),'missing':sum(x['value'] is None for x in output)},'provider_quality':provider_quality(output,busy),'market_diagnosis':diagnosis(output,busy),'semiconductor':semiconductor(output,usable,asof,busy),'indicators':output,'cycles':cycles,'model':model,'diagnostics':diagnostics(usable,asof,busy),'busy':busy,'last_run':{'state':last_run.state,'started':iso(last_run.started),'finished':iso(last_run.finished)} if last_run else None}
 
