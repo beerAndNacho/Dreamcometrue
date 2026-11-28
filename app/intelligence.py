@@ -124,6 +124,21 @@ def _facts(period,code,busy):
                     val=x.get('values',x).get(k)
                     if val is not None and isinstance(val,(int,float)) and math.isfinite(val):
                         records.append(evidence_entry('stock_'+k,code+' '+label,val,unit,yr,kv.SOURCE+rec if rec else 'https://opendart.fss.or.kr/'))
+        ratio=d['semiconductor']['ratio']
+        if ratio['value'] is not None:
+            entry=evidence_entry(ratio['id'],ratio['name'],ratio['value'],ratio['unit'],ratio['period'],ratio['sources'][0])
+            entry['sources']=ratio['sources'];entry['components']=ratio['components'];entry['note']=ratio['note']+' · '+ratio['previous_period']+' '+str(ratio['previous_ratio'])+' → '+ratio['period']+' '+str(ratio['current_ratio'])
+            records.append(entry)
+        else:missing.append(ratio['name'])
+        for domain in d['market_diagnosis']['domains']:
+            if domain['state']=='판단 보류':missing.append(domain['name']+' 분야 진단 일부 근거 부족');continue
+            checks=domain['checks']
+            source=next(x['url'] for x in d['indicators'] if x['id']==checks[0]['id'])
+            entry=evidence_entry('domain_'+domain['id'],domain['name']+' 탐색적 경계 신호',domain['adverse_count'],'건 / '+str(domain['total'])+'개 규칙',d['asof'],source)
+            entry['note']='규칙 기준일이며 구성 지표 관측일은 서로 다름. 확률/배분 점수 아님. '+domain['state']+' · '+'; '.join(c['rule']+' ('+str(c['value'])+' '+str(c['unit'])+', '+str(c['period'])+', '+('경계' if c['adverse'] else '미충족')+')' for c in checks)
+            entry['components']=[c['id'] for c in checks]
+            entry['sources']=[x['url'] for x in d['indicators'] if x['id'] in entry['components']]
+            records.append(entry)
     else:missing.append('수집 진행 중')
     if period=='weekly' and not d['busy']:
         with Session() as db:
