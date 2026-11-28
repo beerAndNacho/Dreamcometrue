@@ -1,5 +1,9 @@
 # Macro Invest 검증 기록
 
+## 5.1 개발
+
+- 5.0.2 PR #6 자동 검사 성공 후 main 병합(3af5aad). 신규 분야 진단의 임계값·누락·수집 중 보류와 제공처 집계 테스트 추가. 실행 결과, 실제 API 및 과거 예측력은 아직 검증하지 않음.
+
 ## 5.0.2 시각 검수 후 추가 검증
 
 - 기반 main 커밋 8f25f5d70be5f12d58ff527d573ff337fef078ff: run 46100994121, Chromium·Python 3.11·3.12 모두 성공. https://github.com/beerAndNacho/Dreamcometrue/actions/runs/46100994121

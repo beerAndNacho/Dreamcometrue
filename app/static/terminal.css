@@ -273,3 +273,5 @@ body.terminal-chart-open{overflow:hidden}
  #detailPanel .history-context-wrap .check>span:last-child{color:var(--text)}
  #reportPanel .terminal-report-actions{margin-top:8px}
 }
+
+.domain-card{border:1px solid var(--edge);border-radius:9px;margin:8px 0;padding:12px;background:var(--surface)}.domain-card summary{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;cursor:pointer}.domain-card summary span{font-size:12px;color:var(--muted)}.domain-card .check{overflow-wrap:anywhere}
