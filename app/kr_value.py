@@ -15,6 +15,7 @@ from .admin import require_admin, require_write
 from .collect import LOCK, today
 from .db import DEMO
 from .settings import load_settings
+from .company_observation import metrics as company_metrics
 
 router=APIRouter(tags=['kr-value'])
 SCOPE=Literal['CFS','OFS']
@@ -126,20 +127,28 @@ def available_years(count): return list(range(max(2015,today().year-count),today
 @router.get('/kr-value',include_in_schema=False,dependencies=[Depends(require_admin)])
 def page(): return FileResponse(Path(__file__).parent/'static'/'kr-value.html')
 
-@router.get('/api/kr-value',dependencies=[Depends(require_admin)])
-def dashboard(code:str=Query(pattern=r'^\d{6}$'),scope:SCOPE='CFS',years:int=Query(5,ge=5,le=10)):
-    if years not in (5,10): raise HTTPException(422,'5년 또는 10년 선택')
-    watch=identity(code); history=[]
+def annual_records(code,scope,years):
+    history=[]
     for year in available_years(years):
         if DEMO:
-            f={'state':'demo','data':demo_history(year,scope),'updated':None}; d={'state':'demo','data':{'year':year,'dps':500+(year-2015)*160,'reported_yield':None,'reported_payout':None,'receipt':None,'closing':None},'updated':None}
+            data=demo_history(year,scope);prev=demo_history(year-1,scope)
+            data['growth']={k:round((data['values'][k]/prev['values'][k]-1)*100,4) for k in ('revenue','operating_profit','net_income','eps') if prev['values'][k]>0}
+            f={'state':'demo','data':data,'updated':None}
+            d={'state':'demo','data':{'year':year,'dps':500+(year-2015)*160,'reported_yield':None,'reported_payout':None,'receipt':None,'closing':None},'updated':None}
         else:
             f=payload(key('financial',code,scope,year)); d=payload(key('dividend',code,'COMMON',year))
         history.append({'year':year,'financial':f,'dividend':d})
-    price,_=km.watch_data(code); last=price['rows'][-1] if price['rows'] else None
+    return history
+
+@router.get('/api/kr-value',dependencies=[Depends(require_admin)])
+def dashboard(code:str=Query(pattern=r'^\d{6}$'),scope:SCOPE='CFS',years:int=Query(5,ge=5,le=10)):
+    if years not in (5,10): raise HTTPException(422,'5년 또는 10년 선택')
+    watch=identity(code); history=annual_records(code,scope,years)
+    price,flow=km.watch_data(code); last=price['rows'][-1] if price['rows'] else None
+    observation=company_metrics(today(),history,price,flow,scope,DEMO,LOCK.locked())
     events=payload(key('events',code,'COMMON')); schedule=payload(key('schedule',code,'COMMON'))
     multiples=payload(key('multiples',code,'COMMON'))
-    return {'demo':DEMO,'watch':watch,'history':history,'multiples':multiples,'scope':scope,'price':last,'price_stale':price.get('stale',True),'events':events,'schedule':schedule,'configured':bool(load_settings()['DART_API_KEY']),'asof':str(today())}
+    return {'demo':DEMO,'watch':watch,'history':history,'multiples':multiples,'company_observation':observation,'scope':scope,'price':last,'price_stale':price.get('stale',True),'events':events,'schedule':schedule,'configured':bool(load_settings()['DART_API_KEY']),'asof':str(today())}
 
 class Refresh(BaseModel):
     code:str=Field(pattern=r'^\d{6}$')

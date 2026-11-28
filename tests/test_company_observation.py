@@ -29,3 +29,18 @@ def test_missing_stale_busy():
     assert items(history=annual('20261201000001'))['company_eps'] is None
     assert items(price={'state':'error','stale':True,'rows':rows()})['company_close'] is None
     assert all(v is None for v in items(busy=True).values())
+
+def test_company_route_report_and_private_exclusion():
+    from app.main import app
+    from fastapi.testclient import TestClient
+    auth=('admin','test-admin-password-1234');head={'X-Macro-Admin':'1'}
+    with TestClient(app) as c:
+        assert c.put('/api/kr-market/watch',auth=auth,headers=head,json={'code':'000270','name':'private company alias'}).status_code==200
+        try:
+            assert c.get('/api/kr-value?code=000270').status_code==401
+            data=c.get('/api/kr-value?code=000270',auth=auth).json()['company_observation']
+            assert data['demo'] and len(data['groups'])==4
+            r=c.get('/api/intelligence?code=000270',auth=auth).json()
+            assert any(x['id']=='company_annual_multiple' for x in r['report']['evidence'])
+            assert 'private company alias' not in r['prompt']
+        finally:c.delete('/api/kr-market/watch/000270',auth=auth,headers=head)
